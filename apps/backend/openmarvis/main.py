@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .api import echo_router
+from .api import conversations_router, echo_router
 from .config import get_settings
 from .deps import build_app_state
 
@@ -27,6 +27,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(echo_router)
+    app.include_router(conversations_router)
 
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:

@@ -8,4 +8,5 @@ from openmarvis.main import create_app
 
 @pytest.fixture()
 def client() -> TestClient:
-    return TestClient(create_app())
+    with TestClient(create_app()) as c:
+        yield c
