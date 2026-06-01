@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+.next/
+.turbo/
+dist/
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
+
+# Local
+.env
+.env.local
+*.log
+~/.openmarvis/      # 防止本地运行目录被提交（保险）
+
+# Build artifacts
+build/
+out/
