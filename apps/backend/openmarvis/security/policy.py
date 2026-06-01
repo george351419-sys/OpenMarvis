@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Any, Literal
 
 Action = Literal["allow", "confirm", "block"]
 
@@ -31,3 +31,40 @@ def aggregate(decisions: list[Decision]) -> Decision:
     if not decisions:
         return Decision.allow()
     return max(decisions, key=lambda d: order[d.action])
+
+
+def _import_guards():
+    from .cmd_guard import CmdGuard
+    from .credential_guard import CredentialGuard
+    from .path_guard import PathGuard
+    return PathGuard, CmdGuard, CredentialGuard
+
+
+class SecurityGate:
+    """组合 PathGuard / CmdGuard / CredentialGuard 决策。"""
+
+    def __init__(self, workspace, extra_blocklist: list[str] | None = None):
+        pg_cls, cg_cls, cr_cls = _import_guards()
+        self.path_guard = pg_cls(workspace=workspace, extra_blocklist=extra_blocklist)
+        self.cmd_guard = cg_cls()
+        self.credential_guard = cr_cls()
+
+    def check(self, *, tool_name: str, args: dict[str, Any]) -> Decision:
+        decisions: list[Decision] = []
+        path_fields = ("file_path", "path", "src", "dst", "target")
+        for f in path_fields:
+            v = args.get(f)
+            if isinstance(v, str):
+                decisions.append(self.path_guard.check_path(v))
+        if "file_paths" in args and isinstance(args["file_paths"], list):
+            for v in args["file_paths"]:
+                decisions.append(self.path_guard.check_path(v))
+        if "command" in args and isinstance(args["command"], str):
+            decisions.append(self.cmd_guard.check_command(args["command"]))
+            decisions.append(self.credential_guard.scan(args["command"]))
+        if "code" in args and isinstance(args["code"], str):
+            decisions.append(self.credential_guard.scan(args["code"]))
+        for v in args.values():
+            if isinstance(v, str):
+                decisions.append(self.credential_guard.scan(v))
+        return aggregate(decisions)
