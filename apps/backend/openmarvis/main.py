@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .api import chat_router, conversations_router, echo_router, files_router
+from .api import chat_router, conversations_router, echo_router, files_router, settings_router
 from .config import get_settings
 from .deps import build_app_state
 
@@ -30,6 +30,7 @@ def create_app() -> FastAPI:
     app.include_router(conversations_router)
     app.include_router(files_router)
     app.include_router(chat_router)
+    app.include_router(settings_router)
 
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:
