@@ -1,14 +1,24 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .api import echo_router
 from .config import get_settings
+from .deps import build_app_state
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    app.state.om = build_app_state()
+    yield
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title="OpenMarvis", version="0.0.1")
+    app = FastAPI(title="OpenMarvis", version="0.0.1", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
@@ -16,8 +26,6 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
-    from .api import echo_router
     app.include_router(echo_router)
 
     @app.get("/healthz")

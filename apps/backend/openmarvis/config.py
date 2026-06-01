@@ -43,8 +43,8 @@ class Settings(BaseSettings):
 _settings: Settings | None = None
 
 
-def get_settings() -> Settings:
+def get_settings(refresh: bool = False) -> Settings:
     global _settings
-    if _settings is None:
+    if _settings is None or refresh:
         _settings = Settings()
     return _settings
