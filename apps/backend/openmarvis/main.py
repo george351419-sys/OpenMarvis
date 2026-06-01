@@ -17,6 +17,9 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    from .api import echo_router
+    app.include_router(echo_router)
+
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:
         return {"status": "ok", "version": "0.0.1"}
