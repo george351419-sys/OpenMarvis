@@ -77,6 +77,12 @@ async def chat(req: ChatRequest, request: Request) -> EventSourceResponse:
                                content=result.final_content,
                                created_at=int(time.time())))
                 s.commit()
+            # 产物校验
+            from ..protocol.product_validator import validate_products
+            from ..store.audit import writes_for_conv
+            written = {w.path for w in writes_for_conv(engine, req.conv_id)}
+            for issue in validate_products(result.final_content, written_paths=written):
+                await sink.emit("warning", {"message": f"产物问题 [{issue.kind}]: {issue.detail}"})
             await sink.emit("done", {"final_content": result.final_content})
         except Exception as e:  # noqa: BLE001
             await sink.emit("error", {"message": str(e), "recoverable": False})
