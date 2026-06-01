@@ -8,6 +8,8 @@
 
 **Tech Stack:** Python 3.11 + FastAPI + Pydantic + SQLModel + LiteLLM + sse-starlette + Playwright(Python) · Next.js 14 + React 18 + Tailwind + shadcn/ui + Zustand + react-markdown · pnpm workspace + GitHub Actions
 
+**Status:** v0.1.0 implementation complete (backend + frontend MVP, awaiting live E2E with ANTHROPIC_API_KEY).
+
 **Scope:** M0 (~3 天) + M1 (~2 周) = v0.1.0。M2-M4（Browser/Computer/App Agent、Skill、定时任务、打磨）留到后续 plan。
 
 **Spec 参考:** `docs/superpowers/specs/2026-06-01-openmarvis-design.md`
