@@ -88,7 +88,8 @@ class DispatchTaskTool(Tool):
         )
 
     async def execute(self, args: DispatchTaskArgs, ctx: ToolContext) -> ToolResult:
-        if args.agent_name not in ("file-agent", "search-agent"):
+        if args.agent_name not in ("file-agent", "search-agent", "browser-agent",
+                                    "computer-agent"):
             return ToolResult(error=f"未知 Sub Agent: {args.agent_name}")
         if len(args.memory_ids) > 20:
             return ToolResult(error="memory_ids 最多 20 条")
