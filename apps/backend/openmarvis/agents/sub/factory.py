@@ -9,6 +9,18 @@ from ...browser.tools_eval import EvaluateTool
 from ...browser.tools_extract import ExtractTextTool, ListElementsTool
 from ...browser.tools_nav import CurrentUrlTool, GoBackTool, NavigateTool
 from ...browser.tools_wait import WaitForSelectorTool
+from ...computer.tools_apps import AppStatusTool, CloseAppTool, KillProcessTool, OpenAppTool
+from ...computer.tools_clipboard import ClipboardReadTool, ClipboardWriteTool
+from ...computer.tools_info import DiskUsageTool, FindProcessTool, ListProcessesTool, SystemInfoTool
+from ...computer.tools_session import LockScreenTool, NotificationTool, SleepSystemTool
+from ...computer.tools_settings import (
+    BrightnessGetTool,
+    BrightnessSetTool,
+    OpenSettingsPaneTool,
+    VolumeGetTool,
+    VolumeMuteTool,
+    VolumeSetTool,
+)
 from ...llm.event_sink import QueueEventSink
 from ...memory.store import MemoryStore
 from ...prompts import load_prompt
@@ -59,6 +71,18 @@ def _build_registry(agent_name: str, *, llm, engine, brave_key: str | None,
                   ExtractTextTool(pool=browser_pool),
                   ListElementsTool(pool=browser_pool),
                   EvaluateTool(pool=browser_pool),
+                  AskUserTool(registry=ask_registry)):
+            reg.register(t)
+    elif agent_name == "computer-agent":
+        assert ask_registry is not None, "computer-agent 需要 PendingAskRegistry"
+        for t in (SystemInfoTool(), DiskUsageTool(),
+                  ListProcessesTool(), FindProcessTool(),
+                  OpenAppTool(), CloseAppTool(), AppStatusTool(), KillProcessTool(),
+                  VolumeGetTool(), VolumeSetTool(), VolumeMuteTool(),
+                  BrightnessGetTool(), BrightnessSetTool(),
+                  OpenSettingsPaneTool(),
+                  ClipboardReadTool(), ClipboardWriteTool(),
+                  LockScreenTool(), SleepSystemTool(), NotificationTool(),
                   AskUserTool(registry=ask_registry)):
             reg.register(t)
     else:
