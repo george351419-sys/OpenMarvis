@@ -68,3 +68,9 @@ class SecurityGate:
             if isinstance(v, str):
                 decisions.append(self.credential_guard.scan(v))
         return aggregate(decisions)
+
+
+@dataclass
+class RiskAssessment:
+    level: str = "low"        # low / medium / high
+    reasons: list[str] = field(default_factory=list)

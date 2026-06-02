@@ -6,6 +6,8 @@ from typing import Any, ClassVar
 
 from pydantic import BaseModel
 
+from ..security.policy import RiskAssessment
+
 
 @dataclass
 class Card:
@@ -38,9 +40,13 @@ class Tool:
     args_model: ClassVar[type[BaseModel]]
     risk_level: ClassVar[str] = "low"     # low / medium / high
     available_to: ClassVar[Iterable[str]] = ()
+    skip_cmd_guard: ClassVar[bool] = False
 
     async def execute(self, args: BaseModel, ctx: ToolContext) -> ToolResult:  # pragma: no cover
         raise NotImplementedError
+
+    def assess_risk(self, args: BaseModel, ctx: ToolContext | None) -> RiskAssessment:
+        return RiskAssessment(level=self.risk_level, reasons=[])
 
     def anthropic_schema(self) -> dict:
         return {
