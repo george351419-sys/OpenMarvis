@@ -35,7 +35,7 @@ class AnalyzeImageTool(Tool):
     async def execute(self, args: AnalyzeImageArgs, ctx: ToolContext) -> ToolResult:
         if not (1 <= len(args.file_paths) <= 10):
             return ToolResult(error="file_paths 必须为 1~10 张")
-        decision = ctx.security.check(tool_name=self.name,
+        decision = ctx.security.check(tool=self, tool_name=self.name,
                                       args={"file_paths": args.file_paths})
         if decision.action == "block":
             return ToolResult(error=f"risk_blocked: {decision.reason}")

@@ -49,7 +49,23 @@ class SecurityGate:
         self.cmd_guard = cg_cls()
         self.credential_guard = cr_cls()
 
-    def check(self, *, tool_name: str, args: dict[str, Any]) -> Decision:
+    def _dynamic_decision(self, tool, args: dict[str, Any]) -> Decision:
+        """Evaluate dynamic risk via tool.assess_risk and return a Decision."""
+        try:
+            parsed = tool.args_model.model_validate(args)
+            ra = tool.assess_risk(parsed, ctx=None)
+        except Exception:
+            ra = type("RA", (), {"level": tool.risk_level, "reasons": []})()
+        level_to_action = {"low": "allow", "medium": "confirm", "high": "confirm"}
+        action = level_to_action.get(ra.level, "allow")
+        return Decision(
+            action=action,
+            reason="; ".join(ra.reasons) or f"{tool.name} risk={ra.level}",
+            details={"dynamic_reasons": list(ra.reasons), "tool": tool.name},
+        )
+
+    def _static_decisions(self, tool, args: dict[str, Any]) -> list[Decision]:
+        """Run path / cmd / credential guards and return decisions."""
         decisions: list[Decision] = []
         path_fields = ("file_path", "path", "src", "dst", "target")
         for f in path_fields:
@@ -60,13 +76,22 @@ class SecurityGate:
             for v in args["file_paths"]:
                 decisions.append(self.path_guard.check_path(v))
         if "command" in args and isinstance(args["command"], str):
-            decisions.append(self.cmd_guard.check_command(args["command"]))
+            if tool is None or not getattr(tool, "skip_cmd_guard", False):
+                decisions.append(self.cmd_guard.check_command(args["command"]))
             decisions.append(self.credential_guard.scan(args["command"]))
         if "code" in args and isinstance(args["code"], str):
             decisions.append(self.credential_guard.scan(args["code"]))
         for v in args.values():
             if isinstance(v, str):
                 decisions.append(self.credential_guard.scan(v))
+        return decisions
+
+    def check(self, *, tool=None, tool_name: str = "",
+              args: dict[str, Any] | None = None) -> Decision:
+        args = args or {}
+        decisions = self._static_decisions(tool, args)
+        if tool is not None:
+            decisions.append(self._dynamic_decision(tool, args))
         return aggregate(decisions)
 
 

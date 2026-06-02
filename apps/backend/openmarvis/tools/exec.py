@@ -25,7 +25,7 @@ class ShellExecutorTool(Tool):
     available_to = ("main", "file-agent")
 
     async def execute(self, args: ShellExecutorArgs, ctx: ToolContext) -> ToolResult:
-        decision = ctx.security.check(tool_name=self.name, args={"command": args.command})
+        decision = ctx.security.check(tool=self, tool_name=self.name, args={"command": args.command})
         if decision.action == "block":
             return ToolResult(error=f"risk_blocked: {decision.reason}")
         if decision.action == "confirm":
@@ -66,7 +66,7 @@ class PythonExecutorTool(Tool):
     async def execute(self, args: PythonExecutorArgs, ctx: ToolContext) -> ToolResult:
         if not args.code and not args.script_path:
             return ToolResult(error="必须提供 code 或 script_path")
-        decision = ctx.security.check(tool_name=self.name, args={"code": args.code})
+        decision = ctx.security.check(tool=self, tool_name=self.name, args={"code": args.code})
         if decision.action == "block":
             return ToolResult(error=f"risk_blocked: {decision.reason}")
         cwd = ctx.workspace.root if ctx.workspace else Path.cwd()

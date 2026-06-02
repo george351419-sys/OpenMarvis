@@ -52,11 +52,22 @@ def test_skip_cmd_guard_class_override():
     assert SkipTool.skip_cmd_guard is True
 
 
-def test_default_assess_risk_returns_class_level():
-    tool = NoSkipTool()
+def test_default_assess_risk_returns_low_by_default():
+    """默认 assess_risk 不依赖 class-level risk_level，返回 low。
+    工具如果要 medium/high 动态升级，需重写 assess_risk。"""
+    tool = NoSkipTool()  # risk_level="low"
     r = tool.assess_risk(DummyArgs(x=1), ctx=None)
     assert r.level == "low"
     assert r.reasons == []
+
+
+def test_default_assess_risk_does_not_use_class_risk_level():
+    """class-level risk_level 不影响默认 assess_risk 返回值。"""
+    class MediumTool(NoSkipTool):
+        risk_level = "medium"
+    tool = MediumTool()
+    r = tool.assess_risk(DummyArgs(x=1), ctx=None)
+    assert r.level == "low"  # 不是 medium
 
 
 def test_dynamic_assess_risk_upgrades():

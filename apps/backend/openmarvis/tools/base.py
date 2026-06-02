@@ -46,7 +46,7 @@ class Tool:
         raise NotImplementedError
 
     def assess_risk(self, args: BaseModel, ctx: ToolContext | None) -> RiskAssessment:
-        return RiskAssessment(level=self.risk_level, reasons=[])
+        return RiskAssessment(level="low", reasons=[])
 
     def anthropic_schema(self) -> dict:
         return {

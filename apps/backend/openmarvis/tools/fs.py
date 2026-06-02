@@ -31,7 +31,7 @@ class ReadTextTool(Tool):
     available_to = ("main", "file-agent")
 
     async def execute(self, args: ReadTextArgs, ctx: ToolContext) -> ToolResult:
-        decision = ctx.security.check(tool_name=self.name, args=args.model_dump())
+        decision = ctx.security.check(tool=self, tool_name=self.name, args=args.model_dump())
         if decision.action == "block":
             return ToolResult(error=f"risk_blocked: {decision.reason}")
         if decision.action == "confirm":
@@ -65,7 +65,7 @@ class WriteFileTool(Tool):
         self.engine = engine
 
     async def execute(self, args: WriteFileArgs, ctx: ToolContext) -> ToolResult:
-        decision = ctx.security.check(tool_name=self.name, args=args.model_dump())
+        decision = ctx.security.check(tool=self, tool_name=self.name, args=args.model_dump())
         if decision.action == "block":
             return ToolResult(error=f"risk_blocked: {decision.reason}")
         if decision.action == "confirm":
@@ -108,7 +108,7 @@ class EditFileTool(Tool):
         self.engine = engine
 
     async def execute(self, args: EditFileArgs, ctx: ToolContext) -> ToolResult:
-        decision = ctx.security.check(tool_name=self.name, args=args.model_dump())
+        decision = ctx.security.check(tool=self, tool_name=self.name, args=args.model_dump())
         if decision.action == "block":
             return ToolResult(error=f"risk_blocked: {decision.reason}")
         if decision.action == "confirm":
@@ -151,7 +151,7 @@ class DeleteTool(Tool):
         if len(args.file_paths) > 50:
             return ToolResult(error="单次最多 50 个路径")
         decision = ctx.security.check(
-            tool_name=self.name, args={"file_paths": args.file_paths}
+            tool=self, tool_name=self.name, args={"file_paths": args.file_paths}
         )
         if decision.action == "block":
             return ToolResult(error=f"risk_blocked: {decision.reason}")
@@ -189,7 +189,7 @@ class ListDirTool(Tool):
     available_to = ("main", "file-agent")
 
     async def execute(self, args: ListDirArgs, ctx: ToolContext) -> ToolResult:
-        decision = ctx.security.check(tool_name=self.name, args=args.model_dump())
+        decision = ctx.security.check(tool=self, tool_name=self.name, args=args.model_dump())
         if decision.action == "block":
             return ToolResult(error=f"risk_blocked: {decision.reason}")
         p = Path(args.path).expanduser()
@@ -223,7 +223,7 @@ class SearchFilesTool(Tool):
     available_to = ("main", "file-agent")
 
     async def execute(self, args: SearchFilesArgs, ctx: ToolContext) -> ToolResult:
-        decision = ctx.security.check(tool_name=self.name, args={"path": args.root})
+        decision = ctx.security.check(tool=self, tool_name=self.name, args={"path": args.root})
         if decision.action == "block":
             return ToolResult(error=f"risk_blocked: {decision.reason}")
         root = Path(args.root).expanduser()
