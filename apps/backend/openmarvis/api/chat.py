@@ -67,6 +67,7 @@ async def chat(req: ChatRequest, request: Request) -> EventSourceResponse:
         brave_key=None,
         workspace=workspace, memory_store=memory, security=security,
         event_sink=sink, user_settings=settings, ask_registry=ask_registry,
+        browser_pool=state.browser_pool,
     )
 
     async def run_agent():

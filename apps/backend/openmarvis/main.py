@@ -14,6 +14,10 @@ from .deps import build_app_state
 async def lifespan(app: FastAPI):
     app.state.om = build_app_state()
     yield
+    try:
+        await app.state.om.browser_pool.shutdown()
+    except Exception:
+        pass
 
 
 def create_app() -> FastAPI:

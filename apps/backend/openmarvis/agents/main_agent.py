@@ -48,11 +48,14 @@ def build_main_agent(
     event_sink: QueueEventSink,
     user_settings,
     ask_registry: PendingAskRegistry | None = None,
+    browser_pool=None,
 ) -> AgentBase:
     if ask_registry is None:
         ask_registry = PendingAskRegistry()
     sub_store = SubAgentStore(engine)
-    factory = SubAgentFactory(llm=llm, engine=engine, brave_key=brave_key)
+    factory = SubAgentFactory(llm=llm, engine=engine, brave_key=brave_key,
+                              browser_pool=browser_pool,
+                              ask_registry=ask_registry)
     reg = ToolRegistry()
     for t in (
         ReadTextTool(),

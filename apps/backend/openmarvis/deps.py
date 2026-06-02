@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .browser.pool import BrowserPool
 from .config import Settings, get_settings
 from .memory.store import MemoryStore
 from .store.db import create_engine, init_db
@@ -14,6 +15,7 @@ class AppState:
     engine: object
     workspaces: WorkspaceManager
     memory: MemoryStore
+    browser_pool: BrowserPool
 
 
 def build_app_state() -> AppState:
@@ -23,4 +25,7 @@ def build_app_state() -> AppState:
     init_db(engine)
     workspaces = WorkspaceManager(root_base=settings.workspace.root)
     memory = MemoryStore(engine)
-    return AppState(settings=settings, engine=engine, workspaces=workspaces, memory=memory)
+    browser_pool = BrowserPool(settings=settings.browser,
+                                profile_dir_base=settings.workspace.root / "browser-profile")
+    return AppState(settings=settings, engine=engine, workspaces=workspaces,
+                    memory=memory, browser_pool=browser_pool)
