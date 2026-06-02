@@ -6,8 +6,10 @@ OpenMarvis 是一款开源、可扩展的桌面 AI 助手框架，采用 Main Ag
 
 ## 状态
 
-- v0.1.0：MVP 闭环（Main + File + Search Agent），macOS 14+
-- 后端：Python 3.11 + FastAPI + Pydantic + LiteLLM
+- v0.5.0：+ Browser Agent + Computer Agent + Spotlight 工具
+- v0.1.0：MVP 闭环（Main + File + Search Agent）
+- 平台：macOS 14+
+- 后端：Python 3.11 + FastAPI + Pydantic + LiteLLM + Playwright
 - 前端：Next.js 14 + Tailwind + shadcn/ui
 
 ## 快速开始
@@ -28,6 +30,22 @@ make dev
 - 架构 spec：`docs/superpowers/specs/2026-06-01-openmarvis-design.md`
 - 实施计划：`docs/superpowers/plans/2026-06-01-openmarvis-m0-m1-mvp.md`
 - 贡献指南：`CONTRIBUTING.md`
+
+## v0.5.0 试一试
+
+```
+# 让 OpenMarvis 调你的音量
+"调音量到 30%"
+
+# 让 OpenMarvis 打开 GitHub 看你自己的仓库（首次需要登录）
+"用 Browser Agent 打开 github.com 我的 dashboard 看一下我有几个 repo"
+
+# 让 OpenMarvis 秒搜本地
+"我桌面上最近有什么 .pdf？" 或 "找一下叫 invoice 的文件"
+
+# 让 OpenMarvis 查电池剩余
+"查一下当前电池剩余 / 电源状态"
+```
 
 ## License
 
