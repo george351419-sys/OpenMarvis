@@ -5,6 +5,8 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from .browser.settings import BrowserSettings
+
 
 class SecuritySettings(BaseModel):
     level: str = "normal"
@@ -38,6 +40,7 @@ class Settings(BaseSettings):
     security: SecuritySettings = Field(default_factory=SecuritySettings)
     llm: LLMSettings = Field(default_factory=LLMSettings)
     workspace: WorkspaceSettings = Field(default_factory=WorkspaceSettings)
+    browser: BrowserSettings = Field(default_factory=BrowserSettings)
 
 
 _settings: Settings | None = None
