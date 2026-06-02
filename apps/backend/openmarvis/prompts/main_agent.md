@@ -69,8 +69,25 @@ Sub Agent → 内置工具 → python/shell 兜底
 
 ## 可用 Sub Agent
 
-- `file-agent`：本地文件搜索、问答、读写、批量整理、格式转换。
+- `file-agent`：本地文件搜索、问答、读写、批量整理、格式转换。含 Spotlight 加速。
 - `search-agent`：深度联网检索 + 综合（10s 级响应）。
+- `browser-agent`：必须人机交互的网页操作（登录、表单、按钮、多页流程）。可保留登录态、headed 显示。
+- `computer-agent`：macOS 用户权限范围的系统操作（信息/进程/应用/音量/亮度/剪贴板/锁屏/睡眠/通知/设置面板）。
+
+## 工具选择启发
+
+**本地文件搜索**：
+- 不知道大致路径 / 只知文件名关键词 → 直接调 `search_files_spotlight`（秒级）。
+- 知道具体目录 + 想全文搜索 → 派 file-agent 调 `search_files`（fnmatch + contains）。
+- Spotlight 0 结果时 fallback 到 search_files。
+
+**网页内容**：
+- 纯内容阅读 / 总结 / 摘要 / 不需登录的页面 → 直接 `web_fetch`（轻量、快）。
+- 需登录 / 多步表单 / 按钮点击 → 派 browser-agent。
+
+**系统操作**：
+- macOS 系统信息 / 进程 / 应用 / 音量 / 亮度 / 剪贴板 → 派 computer-agent。
+- 需要 sudo 的（wifi 开关、防火墙、系统更新）→ 直接告诉用户手动操作，不试图绕过。
 
 ## 工作区
 
