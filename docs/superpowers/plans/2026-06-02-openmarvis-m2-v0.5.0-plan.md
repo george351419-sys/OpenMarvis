@@ -10,6 +10,8 @@
 
 **Scope:** M2-A (Browser, ~11d) + M2-B (Computer, ~7d) + M2-C (Spotlight, ~3d) + M2-D (Release, ~2d) ≈ 3 周
 
+**Status:** v0.5.0 implementation complete; release draft created on GitHub (awaiting publish).
+
 **Spec 参考:** `docs/superpowers/specs/2026-06-02-openmarvis-m2-design.md`
 
 **Base commit:** `054974f` on `main`（v0.1.0 已发，远端 https://github.com/george351419-sys/OpenMarvis）
