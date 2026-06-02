@@ -23,6 +23,7 @@ dependencies = [
   "ulid-py>=1.1",
   "Pillow>=10.4",
   "pypdf>=4.3",
+  "playwright>=1.45,<2.0",
 ]
 
 [project.optional-dependencies]
