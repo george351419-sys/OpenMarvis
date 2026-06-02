@@ -27,5 +27,10 @@ def build_app_state() -> AppState:
     memory = MemoryStore(engine)
     browser_pool = BrowserPool(settings=settings.browser,
                                 profile_dir_base=settings.workspace.root / "browser-profile")
+    try:
+        from .computer.permission_probe import probe_permissions
+        probe_permissions()
+    except Exception:
+        pass
     return AppState(settings=settings, engine=engine, workspaces=workspaces,
                     memory=memory, browser_pool=browser_pool)
