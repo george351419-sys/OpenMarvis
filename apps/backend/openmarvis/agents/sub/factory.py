@@ -37,6 +37,7 @@ from ...tools.fs import (
 )
 from ...tools.image import AnalyzeImageTool
 from ...tools.registry import ToolRegistry
+from ...tools.spotlight import SpotlightTool
 from ...tools.web import WebFetchTool, WebSearchTool
 from ...workspace.manager import Workspace
 from ..base import AgentBase
@@ -51,7 +52,8 @@ def _build_registry(agent_name: str, *, llm, engine, brave_key: str | None,
                   EditFileTool(engine=engine), DeleteTool(),
                   ListDirTool(), SearchFilesTool(),
                   ShellExecutorTool(), PythonExecutorTool(),
-                  AnalyzeImageTool(llm=llm)):
+                  AnalyzeImageTool(llm=llm),
+                  SpotlightTool()):
             reg.register(t)
     elif agent_name == "search-agent":
         for t in (WebSearchTool(api_key=brave_key), WebFetchTool(),
