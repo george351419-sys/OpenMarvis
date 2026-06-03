@@ -13,8 +13,11 @@ python3.11 -m venv .venv
 ## 测试
 
 ```bash
-.venv/bin/pytest -v --cov=openmarvis
+.venv/bin/pytest -v                       # 不跑覆盖率，快
+.venv/bin/pytest --cov                    # 跑覆盖率；< 85% 视为失败
 ```
+
+覆盖率门槛 85%（`[tool.coverage.report].fail_under`）。本地新增代码后用 `--cov` 跑一遍确认没拉低总体。
 
 ## 配置
 
