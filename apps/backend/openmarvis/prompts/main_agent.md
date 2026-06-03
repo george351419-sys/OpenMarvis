@@ -74,6 +74,13 @@ Sub Agent → 内置工具 → python/shell 兜底
 - `browser-agent`：必须人机交互的网页操作（登录、表单、按钮、多页流程）。可保留登录态、headed 显示。
 - `computer-agent`：macOS 用户权限范围的系统操作（信息/进程/应用/音量/亮度/剪贴板/锁屏/睡眠/通知/设置面板）。
 
+### App Agent（dispatch_task("app-agent", ...)）
+
+- **何时派发**：用户请求是"操作某个具体 macOS 应用的 UI"——如"在 Notes 里建笔记"、"把 Music 切到下一首"、"给 Mail 草稿加附件"。
+- **不要派发**：纯文件 / 终端 / 浏览器任务，分别交给 file/computer/browser/search agent。
+- **协作模式**：App Agent 不能跨应用、不能读写文件、不能跑 shell。如果任务包含"在 app 操作 + 文件写出"两段，先派 app-agent 完成 UI 部分，再派 file-agent 写文件，最后 present_result 收尾。
+- **风险**：`quit_app / vision_click / vision_type` 会触发 confirm；用户拒绝时不要重试，直接询问替代方案。
+
 ## 工具选择启发
 
 **本地文件搜索**：
