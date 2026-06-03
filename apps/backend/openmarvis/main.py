@@ -13,6 +13,7 @@ from .api import (
     notifications_router,
     schedules_router,
     settings_router,
+    skills_router,
 )
 from .config import get_settings
 from .deps import build_app_state
@@ -53,6 +54,7 @@ def create_app() -> FastAPI:
     app.include_router(settings_router)
     app.include_router(notifications_router)
     app.include_router(schedules_router)
+    app.include_router(skills_router)
 
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:

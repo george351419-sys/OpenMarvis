@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Clock, Plus, Trash2 } from "lucide-react";
+import { Clock, Plus, Sparkles, Trash2 } from "lucide-react";
 
 import { api, ConversationDTO } from "@/lib/api";
 import { NotificationBell } from "./NotificationBell";
@@ -14,6 +14,10 @@ export function ConversationSidebar({ activeId }: { activeId?: string }) {
       <div className="p-3 border-b border-border flex items-center justify-between">
         <span className="text-sm font-semibold">会话</span>
         <div className="flex items-center gap-1">
+          <Link href="/skills" className="p-1.5 rounded hover:bg-muted/60"
+                title="Skills">
+            <Sparkles className="w-4 h-4" />
+          </Link>
           <Link href="/schedules" className="p-1.5 rounded hover:bg-muted/60"
                 title="定时任务">
             <Clock className="w-4 h-4" />

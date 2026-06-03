@@ -33,6 +33,23 @@ export interface ScheduleDTO {
   description: string;
   next_run_at: string | null;
 }
+export interface SkillParamDTO {
+  type: string;
+  description: string;
+  required: boolean;
+  enum: string[] | null;
+  default: unknown;
+}
+export interface SkillDTO {
+  name: string;
+  version: string;
+  description: string;
+  author: string;
+  license: string;
+  risk: "low" | "medium" | "high";
+  params: Record<string, SkillParamDTO>;
+  allowed_tools: string[];
+}
 
 export const api = {
   listConversations: () => fetchJson<ConversationDTO[]>("/conversations"),
@@ -63,4 +80,5 @@ export const api = {
   listSchedules: () => fetchJson<ScheduleDTO[]>("/schedules"),
   cancelSchedule: (id: string) =>
     fetchJson<{ ok: boolean }>(`/schedules/${id}`, { method: "DELETE" }),
+  listSkills: () => fetchJson<SkillDTO[]>("/skills"),
 };
