@@ -2,6 +2,23 @@ from __future__ import annotations
 
 import ulid
 
+from ...app_automation.ax_backend import AXBackend
+from ...app_automation.cliclick_runner import CliclickRunner
+from ...app_automation.tools_app import (
+    ActivateAppTool,
+    ClickAXNodeTool,
+    GetAXTreeTool,
+    ListRunningAppsTool,
+    ListWindowsTool,
+    QuitAppTool,
+    ReadWindowTextTool,
+    ScreenshotWindowTool,
+    SelectMenuTool,
+    TypeTextTool,
+    VisionClickTool,
+    VisionTypeTool,
+)
+from ...app_automation.vision_backend import VisionBackend
 from ...browser.pool import BrowserPool
 from ...browser.tools_action import ClickTool, FillTool, SubmitFormTool
 from ...browser.tools_capture import ScreenshotTool
@@ -43,7 +60,7 @@ from ...workspace.manager import Workspace
 from ..base import AgentBase
 
 
-def _build_registry(agent_name: str, *, llm, engine, brave_key: str | None,
+def _build_registry(agent_name: str, *, llm, engine, brave_key: str | None,  # noqa: C901
                      browser_pool: BrowserPool | None = None,
                      ask_registry: PendingAskRegistry | None = None) -> ToolRegistry:
     reg = ToolRegistry()
@@ -85,6 +102,25 @@ def _build_registry(agent_name: str, *, llm, engine, brave_key: str | None,
                   OpenSettingsPaneTool(),
                   ClipboardReadTool(), ClipboardWriteTool(),
                   LockScreenTool(), SleepSystemTool(), NotificationTool(),
+                  AskUserTool(registry=ask_registry)):
+            reg.register(t)
+    elif agent_name == "app-agent":
+        assert ask_registry is not None, "app-agent 需要 PendingAskRegistry"
+        ax = AXBackend()
+        vision = VisionBackend(llm=llm)
+        cliclick = CliclickRunner()
+        for t in (ListRunningAppsTool(ax=ax),
+                  ListWindowsTool(ax=ax),
+                  GetAXTreeTool(ax=ax),
+                  ReadWindowTextTool(ax=ax),
+                  ScreenshotWindowTool(ax=ax),
+                  ActivateAppTool(ax=ax),
+                  ClickAXNodeTool(ax=ax),
+                  TypeTextTool(ax=ax),
+                  SelectMenuTool(ax=ax),
+                  QuitAppTool(ax=ax),
+                  VisionClickTool(ax=ax, vision=vision, cliclick=cliclick),
+                  VisionTypeTool(ax=ax, vision=vision, cliclick=cliclick),
                   AskUserTool(registry=ask_registry)):
             reg.register(t)
     else:
