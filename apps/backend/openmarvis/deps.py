@@ -32,5 +32,10 @@ def build_app_state() -> AppState:
         probe_permissions()
     except Exception:
         pass
+    try:
+        from .app_automation.permission_probe import probe_app_automation_permissions
+        probe_app_automation_permissions()
+    except Exception:
+        pass
     return AppState(settings=settings, engine=engine, workspaces=workspaces,
                     memory=memory, browser_pool=browser_pool)
