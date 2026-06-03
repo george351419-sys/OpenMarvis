@@ -37,3 +37,20 @@ def test_check_text_allows_plain():
     guard = CredentialGuard()
     d = guard.check_text("hello world")
     assert d.action == "allow"
+
+
+def test_mask_replaces_credentials():
+    from openmarvis.security.credential_guard import CredentialGuard
+    guard = CredentialGuard()
+    key = "sk-ABCDEFGHIJKLMNOPQRSTUVWX"   # 24 chars after sk- → matches {20,}
+    masked = guard.mask(f"hello {key} world")
+    assert key not in masked
+    assert "hello" in masked
+    assert "world" in masked
+
+
+def test_mask_leaves_plain_text():
+    from openmarvis.security.credential_guard import CredentialGuard
+    guard = CredentialGuard()
+    text = "no credentials here"
+    assert guard.mask(text) == text

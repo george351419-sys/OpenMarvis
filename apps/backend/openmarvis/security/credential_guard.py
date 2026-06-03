@@ -34,3 +34,10 @@ class CredentialGuard:
             if p.search(text):
                 return Decision.block("credential_pattern_detected")
         return Decision.allow()
+
+    def mask(self, text: str) -> str:
+        """对凭据样式做不可逆遮罩；不抛、不删，仅替换为前缀+***。"""
+        out = text
+        for p in PATTERNS:
+            out = p.sub(lambda m: (m.group(0)[:5] + "***") if len(m.group(0)) > 5 else "***", out)
+        return out
