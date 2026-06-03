@@ -6,9 +6,16 @@ on:
   pull_request:
     branches: [main]
 
+# 同一分支新 push 取消上一次 in-flight run，省 macOS runner 配额（10× Linux）
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend:
+    name: Backend pytest + 85% coverage
     runs-on: macos-14
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: apps/backend
@@ -21,10 +28,13 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: pip install -e ".[dev]"
       - run: ruff check .
-      - run: pytest -v --cov=openmarvis --cov-report=term-missing --cov-fail-under=80
+      # 不传 --cov-fail-under：pyproject [tool.coverage.report].fail_under=85 已生效
+      - run: pytest -v --cov
 
   web:
+    name: Web typecheck + build
     runs-on: macos-14
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -37,3 +47,48 @@ jobs:
       - run: pnpm lint:web
       - run: pnpm typecheck:web
       - run: pnpm build:web
+
+  e2e:
+    name: Playwright e2e (offline)
+    runs-on: macos-14
+    timeout-minutes: 25
+    needs: [backend, web]      # 前两步不过没必要花 chromium 安装的 CI 时间
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install backend deps into .venv (Playwright webServer expects .venv/bin/uvicorn)
+        working-directory: apps/backend
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -e ".[dev]"
+
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        working-directory: apps/web
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run e2e (offline specs; live skipped by gate)
+        working-directory: apps/web
+        env:
+          OPENMARVIS_WORKSPACE__ROOT: ${{ runner.temp }}/om-e2e
+        run: pnpm exec playwright test schedules-page skills-page timeline-and-bell
+
+      - name: Upload Playwright traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: apps/web/test-results/
+          retention-days: 7

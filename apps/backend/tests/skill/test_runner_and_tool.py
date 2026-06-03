@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -21,9 +21,12 @@ class _Stub(Tool):
 
 def test_build_skill_registry_filters_by_allowlist():
     parent = ToolRegistry()
-    a = _Stub(); a.name = "fs.read_file"
-    b = _Stub(); b.name = "fs.write_file"
-    c = _Stub(); c.name = "exec.shell"
+    a = _Stub()
+    a.name = "fs.read_file"
+    b = _Stub()
+    b.name = "fs.write_file"
+    c = _Stub()
+    c.name = "exec.shell"
     for t in (a, b, c):
         parent.register(t)
     reg = build_skill_registry(parent, ["fs.read_file", "exec.shell"])
