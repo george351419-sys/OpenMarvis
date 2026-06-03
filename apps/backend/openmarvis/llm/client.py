@@ -81,3 +81,23 @@ class LiteLLMClient:
             _accumulate_tool_deltas(delta.get("tool_calls") or [], accumulated_tool_calls)
             stop_reason, tcs = _resolve_finish(choice.get("finish_reason"), accumulated_tool_calls)
             yield StreamChunk(text=text, thinking=thinking, tool_calls=tcs, stop_reason=stop_reason)
+
+    async def complete_with_image(self, *, prompt: str, image_path: str) -> str:
+        """一次性视觉请求；返回模型纯文本响应。"""
+        import base64
+        from pathlib import Path
+        b64 = base64.b64encode(Path(image_path).read_bytes()).decode("ascii")
+        import litellm
+        resp = await litellm.acompletion(
+            model=self.model,
+            max_tokens=512,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url",
+                      "image_url": {"url": f"data:image/png;base64,{b64}"}},
+                ],
+            }],
+        )
+        return (resp.choices[0].message.content or "").strip()
