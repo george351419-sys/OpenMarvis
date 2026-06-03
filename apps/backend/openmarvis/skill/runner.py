@@ -81,6 +81,12 @@ async def run_skill(
     await event_sink.emit("skill_loaded",
                             {"name": manifest.name, "version": manifest.version,
                              "params": validated, "agent_id": agent.agent_id})
-    return await agent.run(
-        user_message=f"执行 skill '{manifest.name}'，参数: {validated}",
-        memory_ids=[])
+    try:
+        result = await agent.run(
+            user_message=f"执行 skill '{manifest.name}'，参数: {validated}",
+            memory_ids=[])
+    finally:
+        # 配对发 sub_agent_end，让前端 timeline 能闭合 skill 子节点。
+        await event_sink.emit("sub_agent_end",
+                                {"agent_id": agent.agent_id, "status": "ok"})
+    return result

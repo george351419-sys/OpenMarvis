@@ -82,7 +82,7 @@ async def test_use_skill_tool_invokes_runner_for_known_skill(monkeypatch):
     assert res.error is None
     assert res.content == "ok"
     assert called["manifest"].name == "echo"
-    assert res.cards[0].type == "skill_call"
+    assert res.cards[0].type == "mv-skill-call"
 
 
 def test_assess_risk_returns_manifest_risk():

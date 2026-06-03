@@ -14,6 +14,7 @@ export function openSSE(path: string, handler: SSEHandler): () => void {
   // Named events
   ["thinking_delta", "content_delta", "tool_call_start", "tool_call_result",
    "card", "ask_user", "sub_agent_start", "sub_agent_end",
+   "skill_loaded",
    "warning", "error", "done"].forEach((name) => {
     es.addEventListener(name, (ev: MessageEvent) => {
       try { handler.onEvent(name, JSON.parse(ev.data)); }

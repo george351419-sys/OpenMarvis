@@ -58,6 +58,6 @@ class UseSkillTool(Tool):
             )
         except ValueError as e:
             return ToolResult(error=str(e))
-        card = Card(type="skill_call",
+        card = Card(type="mv-skill-call",
                      payload=f"{manifest.name} → {result.status}")
         return ToolResult(content=result.final_content, cards=[card])

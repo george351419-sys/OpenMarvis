@@ -108,6 +108,25 @@ export const useTimeline = create<TimelineState>((set, get) => ({
         }));
         break;
       }
+      case "skill_loaded": {
+        // 把 skill 子代理也当 sub_agent_start：push 一帧，name="skill:<name>"。
+        // run_skill 在 finally 里发对应的 sub_agent_end，已经走上面那个 case。
+        ensureMain();
+        const id: string = data.agent_id;
+        const skillName: string = data.name ?? "skill";
+        const parentId = activeId();
+        set((s) => ({
+          agents: { ...s.agents, [id]: {
+            id, name: `skill:${skillName}`,
+            taskTitle: data.version ? `v${data.version}` : undefined,
+            startedAt: now(), status: "running",
+            parentId, toolCalls: [], warnings: [],
+          }},
+          agentOrder: s.agentOrder.includes(id) ? s.agentOrder : [...s.agentOrder, id],
+          activeStack: [...s.activeStack, id],
+        }));
+        break;
+      }
       case "sub_agent_end": {
         const id: string = data.agent_id;
         if (state.agents[id]) {
