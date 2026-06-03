@@ -86,3 +86,58 @@ def test_read_window_text_concats_titles_and_values():
     txt = collect_text(root)
     assert "hello" in txt
     assert "Cancel" in txt
+
+
+def test_click_ax_node_invokes_press(monkeypatch):
+    import openmarvis.app_automation.ax_backend as m
+
+    pressed = {"called": False}
+    def fake_press(element, action):
+        pressed["called"] = True
+        pressed["action"] = action
+        return 0
+
+    monkeypatch.setattr(m, "AXUIElementPerformAction", fake_press, raising=False)
+
+    backend = AXBackend()
+    fake_node = MagicMock()
+    monkeypatch.setattr(backend, "_resolve_node", lambda ref: fake_node)
+    from openmarvis.app_automation.node_ref import NodeRef
+    backend.click_ax_node(NodeRef("com.apple.Notes", 0, "0/1"))
+    assert pressed["called"] is True
+    assert pressed["action"] == "AXPress"
+
+
+def test_type_text_sets_value(monkeypatch):
+    import openmarvis.app_automation.ax_backend as m
+    seen: dict = {}
+
+    def fake_set(element, name, value):
+        seen["name"] = name
+        seen["value"] = value
+        return 0
+
+    monkeypatch.setattr(m, "AXUIElementSetAttributeValue", fake_set, raising=False)
+    backend = AXBackend()
+    monkeypatch.setattr(backend, "_resolve_node", lambda ref: MagicMock())
+    from openmarvis.app_automation.node_ref import NodeRef
+    backend.type_text(NodeRef("com.apple.Notes", 0, "0/1"), "hello")
+    assert seen["name"] == "AXValue"
+    assert seen["value"] == "hello"
+
+
+def test_select_menu_walks_path(monkeypatch):
+    import openmarvis.app_automation.ax_backend as m
+    calls: list[str] = []
+    def fake_press(element, action):
+        calls.append(action)
+        return 0
+    monkeypatch.setattr(m, "AXUIElementPerformAction", fake_press, raising=False)
+
+    backend = AXBackend()
+    monkeypatch.setattr(backend, "_find_menu_item", lambda app, path: MagicMock())
+    fake_app = MagicMock()
+    fake_app.processIdentifier.return_value = 123
+    monkeypatch.setattr(backend, "_find_app", lambda b: fake_app)
+    backend.select_menu("com.apple.Notes", ["File", "New Note"])
+    assert calls == ["AXPress"]

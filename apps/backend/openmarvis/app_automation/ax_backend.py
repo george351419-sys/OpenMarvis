@@ -7,8 +7,14 @@ log = logging.getLogger(__name__)
 
 try:
     from AppKit import NSWorkspace
+    from ApplicationServices import (
+        AXUIElementPerformAction,
+        AXUIElementSetAttributeValue,
+    )
 except Exception:                       # pragma: no cover — non-mac
     NSWorkspace = None                  # type: ignore
+    AXUIElementPerformAction = None     # type: ignore
+    AXUIElementSetAttributeValue = None # type: ignore
 
 
 class AXNotAvailable(RuntimeError):  # noqa: N818
@@ -141,6 +147,69 @@ class AXBackend:
         return AXNode(role=role, title=str(title) if title else None,
                        value=str(value) if value is not None else None,
                        enabled=enabled, path=path, children=children)
+
+    def _resolve_node(self, ref):
+        """按 node_ref 解析到 AXUIElement；找不到抛 AXNotAvailable。"""
+        from ApplicationServices import (
+            AXUIElementCopyAttributeValue,
+            AXUIElementCreateApplication,
+            kAXWindowsAttribute,
+        )
+        app = self._find_app(ref.bundle_id)
+        if app is None:
+            raise AXNotAvailable(f"app not running: {ref.bundle_id}")
+        ax_app = AXUIElementCreateApplication(int(app.processIdentifier()))
+        err, wins = AXUIElementCopyAttributeValue(ax_app, kAXWindowsAttribute, None)
+        if err != 0 or wins is None or ref.window_index >= len(wins):
+            raise AXNotAvailable(f"window {ref.window_index} not found")
+        node = wins[ref.window_index]
+        for idx in ref.ax_path_indexes:
+            children = self._ax_attr(node, "AXChildren") or []
+            if idx >= len(children):
+                raise AXNotAvailable(f"ax_path index out of range: {idx}")
+            node = children[idx]
+        return node
+
+    def click_ax_node(self, ref) -> None:
+        node = self._resolve_node(ref)
+        err = AXUIElementPerformAction(node, "AXPress")
+        if err and err != 0:
+            raise AXNotAvailable(f"AXPress failed: err={err}")
+
+    def type_text(self, ref, text: str) -> None:
+        node = self._resolve_node(ref)
+        err = AXUIElementSetAttributeValue(node, "AXValue", text)
+        if err and err != 0:
+            raise AXNotAvailable(f"AXValue set failed: err={err}")
+
+    def _find_menu_item(self, app, path: list[str]):
+        from ApplicationServices import (
+            AXUIElementCopyAttributeValue,
+            AXUIElementCreateApplication,
+            kAXMenuBarAttribute,
+        )
+        ax_app = AXUIElementCreateApplication(int(app.processIdentifier()))
+        err, mb = AXUIElementCopyAttributeValue(ax_app, kAXMenuBarAttribute, None)
+        if err != 0 or mb is None:
+            raise AXNotAvailable("menu bar not found")
+        cur = mb
+        for label in path:
+            children = self._ax_attr(cur, "AXChildren") or []
+            match = next((c for c in children
+                          if str(self._ax_attr(c, "AXTitle") or "") == label), None)
+            if match is None:
+                raise AXNotAvailable(f"menu item not found: {label}")
+            cur = match
+        return cur
+
+    def select_menu(self, bundle_id: str, path: list[str]) -> None:
+        app = self._find_app(bundle_id)
+        if app is None:
+            raise AXNotAvailable(f"app not running: {bundle_id}")
+        item = self._find_menu_item(app, path)
+        err = AXUIElementPerformAction(item, "AXPress")
+        if err and err != 0:
+            raise AXNotAvailable(f"menu AXPress failed: err={err}")
 
 
 @dataclass
