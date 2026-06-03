@@ -51,6 +51,7 @@ def build_main_agent(
     ask_registry: PendingAskRegistry | None = None,
     browser_pool=None,
     scheduler_manager=None,
+    skill_registry=None,
 ) -> AgentBase:
     if ask_registry is None:
         ask_registry = PendingAskRegistry()
@@ -87,6 +88,11 @@ def build_main_agent(
     )
     for t in (CreateScheduleTool(), ListSchedulesTool(), CancelScheduleTool()):
         reg.register(t)
+
+    if skill_registry is not None:
+        from ..skill.tools_skill import UseSkillTool
+        reg.register(UseSkillTool(skill_registry=skill_registry,
+                                    parent_tool_registry=reg, llm=llm))
 
     raw_prompt = load_prompt("main_agent")
     rendered = raw_prompt.replace("{{ WORKSPACE_BLOCK }}", _render_workspace_block(workspace))

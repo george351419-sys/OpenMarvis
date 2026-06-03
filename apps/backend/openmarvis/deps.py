@@ -17,6 +17,7 @@ class AppState:
     memory: MemoryStore
     browser_pool: BrowserPool
     scheduler_manager: object | None = None
+    skill_registry: object | None = None
 
 
 def build_app_state() -> AppState:
@@ -75,8 +76,17 @@ def build_app_state() -> AppState:
         on_fire=_on_fire,
     )
 
+    from pathlib import Path
+
+    from .skill.registry import SkillRegistry
+    skill_registry = SkillRegistry()
+    builtins_root = Path(__file__).parent / "skill" / "builtins"
+    user_skills = settings.workspace.root / "skills"
+    skill_registry.scan(builtins_root, user_skills)
+
     state = AppState(settings=settings, engine=engine, workspaces=workspaces,
                     memory=memory, browser_pool=browser_pool,
-                    scheduler_manager=scheduler_manager)
+                    scheduler_manager=scheduler_manager,
+                    skill_registry=skill_registry)
     _holder["state"] = state
     return state

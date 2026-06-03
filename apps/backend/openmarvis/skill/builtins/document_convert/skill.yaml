@@ -1,0 +1,31 @@
+name: document_convert
+version: 1.0.0
+description: |
+  Convert documents between md / docx / pdf using local pandoc (if available).
+  Falls back to a clear error if pandoc is missing — does not auto-install.
+author: OpenMarvis
+license: Apache-2.0
+risk: medium
+
+params:
+  source_path:
+    type: string
+    description: Absolute path to the source document (must live under workspace).
+    required: true
+  target_format:
+    type: string
+    description: One of md / docx / pdf.
+    enum: [md, docx, pdf]
+    required: true
+  output_dir:
+    type: string
+    description: Where to write the result. Defaults to workspace output dir.
+    required: false
+
+allowed_tools:
+  - read_text
+  - write_file
+  - list_dir
+  - exec.shell
+
+requires_python_packages: []

@@ -47,7 +47,8 @@ def test_render_skill_prompt_substitutes_placeholders():
 async def test_use_skill_tool_unknown_skill_returns_error():
     skills = SkillRegistry()
     parent = ToolRegistry()
-    tool = UseSkillTool(skill_registry=skills, parent_tool_registry=parent)
+    tool = UseSkillTool(skill_registry=skills, parent_tool_registry=parent,
+                          llm=MagicMock())
     ctx = MagicMock()
     res = await tool.execute(UseSkillArgs(name="missing", params={}), ctx)
     assert res.error and "未知" in res.error
@@ -60,7 +61,8 @@ async def test_use_skill_tool_invokes_runner_for_known_skill(monkeypatch):
     manifest.prompt = "do it"
     skills._items["echo"] = manifest                    # bypass scan
     parent = ToolRegistry()
-    tool = UseSkillTool(skill_registry=skills, parent_tool_registry=parent)
+    tool = UseSkillTool(skill_registry=skills, parent_tool_registry=parent,
+                          llm=MagicMock())
 
     # Patch run_skill to avoid spinning a real AgentBase
     called = {}
@@ -84,6 +86,7 @@ def test_assess_risk_returns_manifest_risk():
     skills = SkillRegistry()
     m = SkillManifest(name="big", risk="medium")
     skills._items["big"] = m
-    tool = UseSkillTool(skill_registry=skills, parent_tool_registry=ToolRegistry())
+    tool = UseSkillTool(skill_registry=skills, parent_tool_registry=ToolRegistry(),
+                          llm=MagicMock())
     r = tool.assess_risk(UseSkillArgs(name="big", params={}), None)
     assert r.level == "medium"

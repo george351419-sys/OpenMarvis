@@ -69,6 +69,7 @@ async def chat(req: ChatRequest, request: Request) -> EventSourceResponse:
         event_sink=sink, user_settings=settings, ask_registry=ask_registry,
         browser_pool=state.browser_pool,
         scheduler_manager=state.scheduler_manager,
+        skill_registry=state.skill_registry,
     )
 
     async def run_agent():
@@ -143,6 +144,7 @@ async def _execute_scheduled_chat(virtual_conv_id: str, instruction: str,
         event_sink=sink, user_settings=settings, ask_registry=None,
         browser_pool=state.browser_pool,
         scheduler_manager=state.scheduler_manager,
+        skill_registry=state.skill_registry,
     )
     # 替换 registry 为过滤后的版本（去掉 scheduler.* + ask_user）
     agent.tools = filter_registry_for_scheduled_run(agent.tools)

@@ -14,26 +14,28 @@ class SkillRegistry:
     def __init__(self) -> None:
         self._items: dict[str, SkillManifest] = {}
 
-    def scan(self, root: Path) -> int:
-        """Scan `root/*/skill.yaml`; return count successfully registered.
+    def scan(self, *roots: Path) -> int:
+        """Scan `root/*/skill.yaml` across all given roots.
 
-        Failed entries are logged and skipped — one bad skill must not poison
-        startup.
+        Returns count successfully registered. Failed entries are logged and
+        skipped — one bad skill must not poison startup. Later roots override
+        earlier ones on name collision (so user skills can shadow built-ins).
         """
-        root = Path(root)
-        if not root.is_dir():
-            return 0
         count = 0
-        for child in sorted(root.iterdir()):
-            if not child.is_dir() or not (child / "skill.yaml").is_file():
+        for root in roots:
+            root = Path(root)
+            if not root.is_dir():
                 continue
-            try:
-                manifest = load_skill(child)
-            except SkillLoadError as e:
-                log.warning("skip skill at %s: %s", child, e)
-                continue
-            self._items[manifest.name] = manifest
-            count += 1
+            for child in sorted(root.iterdir()):
+                if not child.is_dir() or not (child / "skill.yaml").is_file():
+                    continue
+                try:
+                    manifest = load_skill(child)
+                except SkillLoadError as e:
+                    log.warning("skip skill at %s: %s", child, e)
+                    continue
+                self._items[manifest.name] = manifest
+                count += 1
         return count
 
     def get(self, name: str) -> SkillManifest | None:

@@ -74,6 +74,13 @@ Sub Agent → 内置工具 → python/shell 兜底
 - `browser-agent`：必须人机交互的网页操作（登录、表单、按钮、多页流程）。可保留登录态、headed 显示。
 - `computer-agent`：macOS 用户权限范围的系统操作（信息/进程/应用/音量/亮度/剪贴板/锁屏/睡眠/通知/设置面板）。
 
+### Skill（use_skill）
+
+- 当用户的请求匹配一个**已安装 Skill**（典型如"把这个 md 转 pdf" → `document_convert`），优先调 `use_skill(name=..., params=...)`，而不是自己拼工具链。
+- 不知道有哪些 skill 可用？目前可见的内置 skill 在 prompt 自带文档里；用户也可能在 `~/.openmarvis/skills/` 自己放新的，遇到不确定时如实告诉用户"未找到名为 X 的 Skill"。
+- skill.yaml 的 `params` 是契约——别擅自传未声明的键，传错会被参数校验直接拒。
+- skill 的 risk 等级由 manifest 决定（一般是 medium，因为可能跑 shell），confirm 流自动起作用。
+
 ### 定时任务（create_schedule / list_schedules / cancel_schedule）
 
 - 用户说"X 分钟/小时/天后提醒我"、"每周一早 9 点跑"、"YYYY-MM-DD HH:MM 跑一次"等定时类需求时：
