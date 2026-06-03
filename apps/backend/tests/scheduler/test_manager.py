@@ -4,8 +4,10 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
 
 import pytest
+from sqlmodel import Session, SQLModel, create_engine
 
 from openmarvis.scheduler.manager import ScheduleManager, ScheduleSpecError
+from openmarvis.store.models import Schedule
 
 
 @pytest.mark.asyncio
@@ -60,5 +62,58 @@ async def test_cancel_removes_schedule(tmp_path):
         ok = mgr.cancel(sid)
         assert ok is True
         assert all(r.id != sid for r in mgr.list())
+    finally:
+        await mgr.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_rehydrate_reloads_jobs_from_db_skipping_past_once(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path}/data.db")
+    SQLModel.metadata.create_all(engine)
+    # Seed: 1 future once, 1 past once (should skip), 1 interval, 1 cron
+    future = (datetime.now(UTC) + timedelta(days=1)).isoformat()
+    past = (datetime.now(UTC) - timedelta(days=1)).isoformat()
+    with Session(engine) as s:
+        for sid, ttype, spec in [
+            ("sch_future", "once", future),
+            ("sch_past", "once", past),
+            ("sch_int", "interval", "120"),
+            ("sch_cron", "cron", "0 9 * * 1"),
+        ]:
+            s.add(Schedule(id=sid, origin_conv_id="c", trigger_type=ttype,
+                             trigger_spec=spec, instruction="x", description="",
+                             created_at=0))
+        s.commit()
+
+    mgr = ScheduleManager(db_dir=tmp_path, engine=engine, on_fire=MagicMock())
+    await mgr.start()
+    try:
+        loaded = mgr.rehydrate()
+        ids = {r.id for r in mgr.list()}
+        assert {"sch_future", "sch_int", "sch_cron"}.issubset(ids)
+        assert "sch_past" not in ids        # past once skipped
+        assert loaded == 3                     # report skipped count externally
+    finally:
+        await mgr.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_rehydrate_is_idempotent(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path}/data.db")
+    SQLModel.metadata.create_all(engine)
+    future = (datetime.now(UTC) + timedelta(days=1)).isoformat()
+    with Session(engine) as s:
+        s.add(Schedule(id="sch_once", origin_conv_id="c", trigger_type="once",
+                         trigger_spec=future, instruction="x", description="",
+                         created_at=0))
+        s.commit()
+
+    mgr = ScheduleManager(db_dir=tmp_path, engine=engine, on_fire=MagicMock())
+    await mgr.start()
+    try:
+        mgr.rehydrate()
+        mgr.rehydrate()                       # second call must not crash
+        ids = [r.id for r in mgr.list()]
+        assert ids.count("sch_once") == 1
     finally:
         await mgr.shutdown()

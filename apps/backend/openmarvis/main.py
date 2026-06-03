@@ -21,6 +21,7 @@ from .deps import build_app_state
 async def lifespan(app: FastAPI):
     app.state.om = build_app_state()
     await app.state.om.scheduler_manager.start()
+    app.state.om.scheduler_manager.rehydrate()
     try:
         yield
     finally:

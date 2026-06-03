@@ -60,6 +60,49 @@ class ScheduleManager:
     async def shutdown(self) -> None:
         self._sched.shutdown(wait=False)
 
+    def rehydrate(self) -> int:
+        """重启后把 Schedule 表里的行重新挂回 APScheduler。
+
+        - `once` 触发时间已过 → 跳过（不补跑）。
+        - 已经在 scheduler 里的 sid → 跳过（idempotent）。
+        返回成功加载的 job 数。
+        """
+        if self.engine is None:
+            return 0
+        from sqlmodel import Session, select
+
+        from ..store.models import Schedule
+        loaded = 0
+        existing = {j.id for j in self._sched.get_jobs()}
+        now = datetime.now(UTC)
+        with Session(self.engine) as ses:
+            rows = ses.exec(select(Schedule)).all()
+        for r in rows:
+            if r.id in existing:
+                continue
+            try:
+                if r.trigger_type == "once":
+                    run_at = datetime.fromisoformat(r.trigger_spec)
+                    if run_at <= now:
+                        log.info("skip past-due once schedule %s", r.id)
+                        continue
+                    trig = DateTrigger(run_date=run_at)
+                elif r.trigger_type == "interval":
+                    trig = IntervalTrigger(seconds=int(r.trigger_spec))
+                elif r.trigger_type == "cron":
+                    trig = CronTrigger.from_crontab(r.trigger_spec)
+                else:
+                    log.warning("unknown trigger_type %s on %s",
+                                 r.trigger_type, r.id)
+                    continue
+                self._sched.add_job(self._wrap_callback(r.id), trigger=trig,
+                                     id=r.id, name=r.description or r.trigger_type,
+                                     replace_existing=False)
+                loaded += 1
+            except Exception:
+                log.exception("rehydrate failed for %s", r.id)
+        return loaded
+
     def _wrap_callback(self, sid: str):
         async def _fn():
             result = self._on_fire(sid)
