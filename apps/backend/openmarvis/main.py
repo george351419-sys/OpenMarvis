@@ -11,6 +11,7 @@ from .api import (
     echo_router,
     files_router,
     notifications_router,
+    schedules_router,
     settings_router,
 )
 from .config import get_settings
@@ -51,6 +52,7 @@ def create_app() -> FastAPI:
     app.include_router(chat_router)
     app.include_router(settings_router)
     app.include_router(notifications_router)
+    app.include_router(schedules_router)
 
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:

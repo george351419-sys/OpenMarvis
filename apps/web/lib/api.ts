@@ -24,6 +24,15 @@ export interface NotificationDTO {
   status: "success" | "failed";
   created_at: number;
 }
+export interface ScheduleDTO {
+  id: string;
+  origin_conv_id: string;
+  trigger_type: "once" | "interval" | "cron";
+  trigger_spec: string;
+  instruction: string;
+  description: string;
+  next_run_at: string | null;
+}
 
 export const api = {
   listConversations: () => fetchJson<ConversationDTO[]>("/conversations"),
@@ -51,4 +60,7 @@ export const api = {
   },
   markNotificationRead: (id: number) =>
     fetchJson<{ ok: boolean }>(`/notifications/${id}/read`, { method: "POST" }),
+  listSchedules: () => fetchJson<ScheduleDTO[]>("/schedules"),
+  cancelSchedule: (id: string) =>
+    fetchJson<{ ok: boolean }>(`/schedules/${id}`, { method: "DELETE" }),
 };
