@@ -105,3 +105,71 @@ class AXBackend:
             return (int(pos.x), int(pos.y), int(size.width), int(size.height))
         except Exception:
             return (0, 0, 0, 0)
+
+    def get_ax_tree(self, bundle_id: str, window_index: int = 0,
+                    max_depth: int = 6) -> AXNode | None:
+        from ApplicationServices import (
+            AXUIElementCopyAttributeValue,
+            AXUIElementCreateApplication,
+            kAXWindowsAttribute,
+        )
+        app = self._find_app(bundle_id)
+        if app is None:
+            return None
+        ax_app = AXUIElementCreateApplication(int(app.processIdentifier()))
+        err, value = AXUIElementCopyAttributeValue(ax_app, kAXWindowsAttribute, None)
+        if err != 0 or value is None or window_index >= len(value):
+            return None
+        return truncate_tree(self._walk(value[window_index], path=""), max_depth)
+
+    def read_window_text(self, bundle_id: str, window_index: int = 0) -> str:
+        tree = self.get_ax_tree(bundle_id, window_index, max_depth=12)
+        if tree is None:
+            return ""
+        return collect_text(tree)
+
+    def _walk(self, element, *, path: str) -> AXNode:
+        role = str(self._ax_attr(element, "AXRole") or "AXUnknown")
+        title = self._ax_attr(element, "AXTitle")
+        value = self._ax_attr(element, "AXValue")
+        enabled = bool(self._ax_attr(element, "AXEnabled") or False)
+        children_raw = self._ax_attr(element, "AXChildren") or []
+        children: list[AXNode] = []
+        for idx, c in enumerate(children_raw):
+            child_path = f"{path}/{idx}" if path else str(idx)
+            children.append(self._walk(c, path=child_path))
+        return AXNode(role=role, title=str(title) if title else None,
+                       value=str(value) if value is not None else None,
+                       enabled=enabled, path=path, children=children)
+
+
+@dataclass
+class AXNode:
+    role: str
+    title: str | None
+    value: str | None
+    enabled: bool
+    path: str                            # "" for root, "0", "0/1" ...
+    children: list[AXNode]
+
+
+def truncate_tree(node: AXNode, max_depth: int) -> AXNode:
+    if max_depth <= 0:
+        return AXNode(role=node.role, title=node.title, value=node.value,
+                       enabled=node.enabled, path=node.path, children=[])
+    return AXNode(role=node.role, title=node.title, value=node.value,
+                   enabled=node.enabled, path=node.path,
+                   children=[truncate_tree(c, max_depth - 1) for c in node.children])
+
+
+def collect_text(node: AXNode) -> str:
+    out: list[str] = []
+    if node.title:
+        out.append(str(node.title))
+    if node.value:
+        out.append(str(node.value))
+    for c in node.children:
+        sub = collect_text(c)
+        if sub:
+            out.append(sub)
+    return "\n".join(out)

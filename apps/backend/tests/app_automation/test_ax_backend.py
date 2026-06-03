@@ -54,3 +54,35 @@ def test_window_info_dataclass():
                     frame=(0, 0, 800, 600))
     assert w.title == "Untitled"
     assert w.frame == (0, 0, 800, 600)
+
+
+def test_get_ax_tree_truncates_at_depth():
+    from openmarvis.app_automation.ax_backend import AXNode
+
+    leaf = AXNode(role="AXButton", title="OK", value=None, enabled=True,
+                   path="0/0", children=[])
+    mid = AXNode(role="AXGroup", title=None, value=None, enabled=True,
+                  path="0", children=[leaf])
+    root = AXNode(role="AXWindow", title="Win", value=None, enabled=True,
+                   path="", children=[mid])
+
+    from openmarvis.app_automation.ax_backend import truncate_tree
+    t = truncate_tree(root, max_depth=1)
+    # depth=1 means root + one level of children, leaf should be dropped
+    assert len(t.children) == 1
+    assert t.children[0].children == []
+
+
+def test_read_window_text_concats_titles_and_values():
+    from openmarvis.app_automation.ax_backend import AXNode, collect_text
+
+    root = AXNode(role="AXWindow", title="Win", value=None, enabled=True,
+                   path="", children=[
+        AXNode(role="AXStaticText", title=None, value="hello",
+                enabled=True, path="0", children=[]),
+        AXNode(role="AXButton", title="Cancel", value=None,
+                enabled=True, path="1", children=[]),
+    ])
+    txt = collect_text(root)
+    assert "hello" in txt
+    assert "Cancel" in txt
