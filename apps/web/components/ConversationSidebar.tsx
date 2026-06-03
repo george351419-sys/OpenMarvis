@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Plus, Trash2 } from "lucide-react";
 
 import { api, ConversationDTO } from "@/lib/api";
+import { NotificationBell } from "./NotificationBell";
 
 export function ConversationSidebar({ activeId }: { activeId?: string }) {
   const [convs, setConvs] = useState<ConversationDTO[]>([]);
@@ -12,13 +13,16 @@ export function ConversationSidebar({ activeId }: { activeId?: string }) {
     <aside className="w-64 border-r border-border h-screen flex flex-col">
       <div className="p-3 border-b border-border flex items-center justify-between">
         <span className="text-sm font-semibold">会话</span>
-        <button className="text-xs inline-flex items-center gap-1 hover:underline"
-                onClick={async () => {
-                  const c = await api.createConversation("");
-                  window.location.href = `/c/${c.id}`;
-                }}>
-          <Plus className="w-3 h-3" /> 新建
-        </button>
+        <div className="flex items-center gap-1">
+          <NotificationBell />
+          <button className="text-xs inline-flex items-center gap-1 hover:underline"
+                  onClick={async () => {
+                    const c = await api.createConversation("");
+                    window.location.href = `/c/${c.id}`;
+                  }}>
+            <Plus className="w-3 h-3" /> 新建
+          </button>
+        </div>
       </div>
       <ul className="flex-1 overflow-y-auto">
         {convs.map((c) => (

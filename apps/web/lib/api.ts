@@ -15,6 +15,15 @@ export interface ConversationDTO {
 export interface MessageDTO {
   id: number; role: string; content: string; thinking: string; created_at: number;
 }
+export interface NotificationDTO {
+  id: number;
+  origin_conv_id: string;
+  schedule_id: string;
+  virtual_conv_id: string;
+  summary: string;
+  status: "success" | "failed";
+  created_at: number;
+}
 
 export const api = {
   listConversations: () => fetchJson<ConversationDTO[]>("/conversations"),
@@ -36,4 +45,10 @@ export const api = {
   getSettings: () => fetchJson<any>("/settings"),
   putSettings: (patch: any) =>
     fetchJson<any>("/settings", { method: "PUT", body: JSON.stringify(patch) }),
+  listUnreadNotifications: (originConvId?: string) => {
+    const qs = originConvId ? `?origin_conv_id=${encodeURIComponent(originConvId)}` : "";
+    return fetchJson<NotificationDTO[]>(`/notifications/unread${qs}`);
+  },
+  markNotificationRead: (id: number) =>
+    fetchJson<{ ok: boolean }>(`/notifications/${id}/read`, { method: "POST" }),
 };
