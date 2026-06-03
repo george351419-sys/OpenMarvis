@@ -1,5 +1,12 @@
 import { defineConfig } from "@playwright/test";
 
+// v1.0 起统一 OPENMARVIS_LIVE 这一个变量名（跟 backend tests/integration/
+// 一致）。OPENMARVIS_E2E_LIVE 保留作为 deprecated alias，spec 文件里现有
+// 的 test.skip(!process.env.OPENMARVIS_E2E_LIVE, …) 不动。
+if (process.env.OPENMARVIS_LIVE === "1" && !process.env.OPENMARVIS_E2E_LIVE) {
+  process.env.OPENMARVIS_E2E_LIVE = "1";
+}
+
 export default defineConfig({
   testDir: "./tests/e2e",
   timeout: 120_000,

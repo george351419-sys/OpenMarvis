@@ -40,9 +40,9 @@ OpenMarvis 的目标是**让每次提交都跑得起、跑得快、跑得准**�
 |---|---|---|
 | `apps/backend/tests/<area>/test_*.py` | 按 area 切分（`scheduler/` / `skill/` / `app_automation/` / `browser/` / `computer/`）的单元 + API 测试 | `pytest` |
 | `apps/backend/tests/test_*.py` | 顶层 cross-cutting（agent_loop / chat_sse / security_*）| `pytest` |
-| `apps/backend/tests/integration/test_*_live.py` | 真实 LLM / 真实浏览器 / Spotlight | `OPENMARVIS_M2_LIVE=1 pytest` |
+| `apps/backend/tests/integration/test_*_live.py` | 真实 LLM / 真实浏览器 / Spotlight | `OPENMARVIS_LIVE=1 pytest` |
 | `apps/web/tests/e2e/*.spec.ts` | Playwright 全链路 | `pnpm exec playwright test` |
-| `apps/web/tests/e2e/*-live.spec.ts` 或带 `test.skip(!process.env.OPENMARVIS_E2E_LIVE, …)` | 跑真 LLM 的 e2e | `OPENMARVIS_E2E_LIVE=1 pnpm exec playwright test` |
+| `apps/web/tests/e2e/*-live.spec.ts` 或带 `test.skip(!process.env.OPENMARVIS_E2E_LIVE, …)` | 跑真 LLM 的 e2e | `OPENMARVIS_LIVE=1 pnpm exec playwright test` |
 
 **文件命名**：
 
@@ -88,7 +88,7 @@ pnpm exec playwright test schedules-page skills-page timeline-and-bell
 ```bash
 cd apps/web
 export ANTHROPIC_API_KEY=sk-ant-...
-export OPENMARVIS_E2E_LIVE=1
+export OPENMARVIS_LIVE=1
 pnpm exec playwright test
 ```
 
@@ -97,7 +97,7 @@ pnpm exec playwright test
 ```bash
 cd apps/backend
 export ANTHROPIC_API_KEY=sk-ant-...
-export OPENMARVIS_M2_LIVE=1
+export OPENMARVIS_LIVE=1
 .venv/bin/pytest tests/integration/ -v
 ```
 
@@ -125,7 +125,7 @@ export OPENMARVIS_M2_LIVE=1
 
 **Mark 与跳过**：
 
-- 默认禁用：`integration/` 通过 `tests/integration/conftest.py` 在 `OPENMARVIS_M2_LIVE != "1"` 时整体跳过。
+- 默认禁用：`integration/` 通过 `tests/integration/conftest.py` 在 `OPENMARVIS_LIVE` 与 `OPENMARVIS_M2_LIVE` 都不为 `"1"` 时整体跳过。
 - 异步 mode：`pyproject.toml` 设 `asyncio_mode = "auto"`，写 `@pytest.mark.asyncio` 不是必须的，但保留对老代码兼容。
 
 ---
@@ -178,12 +178,13 @@ cd apps/web && npm run typecheck   # tsc --noEmit
 
 ## 6. Live 通道：真实 LLM / 真实权限
 
-**两套环境变量**：
+**统一环境变量**（v1.0 起）：`OPENMARVIS_LIVE=1` 同时开启前端 e2e + 后端 integration 的 live 通道。仍可用旧变量 `OPENMARVIS_M2_LIVE=1`（后端）和 `OPENMARVIS_E2E_LIVE=1`（前端）作为 deprecated alias，便于增量迁移。
 
 | 变量 | 作用域 | 还需要什么 |
 |---|---|---|
-| `OPENMARVIS_M2_LIVE=1` | 后端 `tests/integration/` | `ANTHROPIC_API_KEY`、本地 Playwright Chromium、macOS 权限 |
-| `OPENMARVIS_E2E_LIVE=1` | 前端 `apps/web/tests/e2e/*-live` / 带 `test.skip` 的 spec | `ANTHROPIC_API_KEY`、桌面会有真实 GUI 操作（音量 / 通知 / 浏览器） |
+| `OPENMARVIS_LIVE=1` 🆕 | 前端 e2e + 后端 integration 全部 | `ANTHROPIC_API_KEY`、Playwright Chromium、macOS 权限 |
+| `OPENMARVIS_M2_LIVE=1`（alias）| 仅后端 integration | 同上 |
+| `OPENMARVIS_E2E_LIVE=1`（alias）| 仅前端 e2e | 同上 |
 
 **安全提醒**：
 
@@ -279,7 +280,7 @@ def client(tmp_path, monkeypatch) -> TestClient:
 [ ] cd apps/backend && .venv/bin/pytest --cov       # 含 85% 门槛
 [ ] cd apps/web && npm run typecheck
 [ ] cd apps/web && pnpm exec playwright test schedules-page skills-page timeline-and-bell
-[ ] （可选）OPENMARVIS_M2_LIVE=1 .venv/bin/pytest tests/integration/
+[ ] （可选）OPENMARVIS_LIVE=1 .venv/bin/pytest tests/integration/
 [ ] （可选）OPENMARVIS_E2E_LIVE=1 pnpm exec playwright test
 [ ] CHANGELOG.md 加新版本段落
 [ ] .release-notes-v<X.Y.Z>.md 生成（可从 CHANGELOG 抠）
