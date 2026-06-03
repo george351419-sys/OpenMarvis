@@ -50,6 +50,21 @@ packages = ["openmarvis"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 
+[tool.coverage.run]
+source = ["openmarvis"]
+omit = [
+  "openmarvis/skill/builtins/*",
+]
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+exclude_also = [
+  "pragma: no cover",
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"
