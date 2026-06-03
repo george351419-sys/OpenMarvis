@@ -64,3 +64,27 @@ class AuditLog(SQLModel, table=True):
     duration_ms: int = 0
     exit_code: int | None = None
     error: str | None = None
+
+
+class Schedule(SQLModel, table=True):
+    id: str = Field(primary_key=True)
+    origin_conv_id: str = Field(index=True)
+    trigger_type: str                        # "once" / "interval" / "cron"
+    trigger_spec: str
+    instruction: str                          # 已脱敏的指令文本
+    description: str = ""
+    created_at: int = 0
+    next_run_at: int | None = None
+    last_run_at: int | None = None
+    last_status: str | None = None            # "pending" / "success" / "failed"
+
+
+class ScheduleNotification(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    origin_conv_id: str = Field(index=True)
+    schedule_id: str = Field(index=True)
+    virtual_conv_id: str
+    summary: str = ""
+    status: str = "success"                   # "success" / "failed"
+    read: bool = False
+    created_at: int = 0
