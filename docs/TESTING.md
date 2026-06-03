@@ -286,7 +286,8 @@ def client(tmp_path, monkeypatch) -> TestClient:
 [ ] .release-notes-v<X.Y.Z>.md 生成（可从 CHANGELOG 抠）
 [ ] git tag -a v<X.Y.Z> -F .release-notes-v<X.Y.Z>.md
 [ ] git push origin main && git push origin v<X.Y.Z>
-[ ] gh release create v<X.Y.Z> -F .release-notes-v<X.Y.Z>.md
+[ ] # tag 推送会触发 .github/workflows/release.yml 自动建 draft release；
+    # 直接去 GitHub 上 Publish 即可。也可手动跑 gh release create --draft。
 ```
 
 一行版本：

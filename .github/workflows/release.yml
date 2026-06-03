@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write          # 需要 write 才能 gh release create
+
+jobs:
+  draft-release:
+    name: Draft GitHub Release from .release-notes-<tag>.md
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Locate release notes file
+        id: notes
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          FILE=".release-notes-${TAG}.md"
+          if [ ! -f "$FILE" ]; then
+            echo "::error::Expected release notes at $FILE but not found"
+            echo "::error::Create it (copy from CHANGELOG.md) before pushing the tag"
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "file=$FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG='${{ steps.notes.outputs.tag }}'
+          FILE='${{ steps.notes.outputs.file }}'
+          gh release create "$TAG" \
+            --title "$TAG — OpenMarvis $TAG" \
+            -F "$FILE" \
+            --draft \
+            --verify-tag
