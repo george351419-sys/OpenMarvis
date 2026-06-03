@@ -68,6 +68,7 @@ async def chat(req: ChatRequest, request: Request) -> EventSourceResponse:
         workspace=workspace, memory_store=memory, security=security,
         event_sink=sink, user_settings=settings, ask_registry=ask_registry,
         browser_pool=state.browser_pool,
+        scheduler_manager=state.scheduler_manager,
     )
 
     async def run_agent():
@@ -110,3 +111,50 @@ async def answer_ask(req: AnswerAskRequest) -> dict:
     reg = get_ask_registry(req.conv_id)
     await reg.resolve(req.ask_id, req.choices)
     return {"ok": True}
+
+
+async def _execute_scheduled_chat(virtual_conv_id: str, instruction: str,
+                                    state) -> str:
+    """供 ScheduleManager 触发使用：起一个独立 conversation 跑指令，返回最终回复。"""
+    from sqlmodel import Session
+
+    from ..agents.main_agent import build_main_agent
+    from ..llm.client import LiteLLMClient
+    from ..llm.event_sink import QueueEventSink
+    from ..scheduler.trigger_filter import filter_registry_for_scheduled_run
+    from ..security.policy import SecurityGate
+    from ..store.models import Message
+
+    engine = state.engine
+    workspace = state.workspaces.get_or_create(virtual_conv_id)
+    memory = state.memory
+    settings = state.settings
+    sink = QueueEventSink()
+    security = SecurityGate(workspace=workspace,
+                             extra_blocklist=settings.security.extra_path_blocklist)
+    llm = LiteLLMClient(model=settings.llm.provider_model,
+                         max_tokens=settings.llm.max_tokens,
+                         temperature=settings.llm.temperature)
+
+    agent = build_main_agent(
+        conv_id=virtual_conv_id, llm=llm, engine=engine,
+        brave_key=None,
+        workspace=workspace, memory_store=memory, security=security,
+        event_sink=sink, user_settings=settings, ask_registry=None,
+        browser_pool=state.browser_pool,
+        scheduler_manager=state.scheduler_manager,
+    )
+    # 替换 registry 为过滤后的版本（去掉 scheduler.* + ask_user）
+    agent.tools = filter_registry_for_scheduled_run(agent.tools)
+    user_text = f"[Scheduled Trigger]\n{instruction}"
+    with Session(engine) as s:
+        s.add(Message(conv_id=virtual_conv_id, role="user",
+                       content=user_text, created_at=int(time.time())))
+        s.commit()
+    result = await agent.run(user_message=user_text, memory_ids=[])
+    with Session(engine) as s:
+        s.add(Message(conv_id=virtual_conv_id, role="assistant",
+                       content=result.final_content,
+                       created_at=int(time.time())))
+        s.commit()
+    return result.final_content

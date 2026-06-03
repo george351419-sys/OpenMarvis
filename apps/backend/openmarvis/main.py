@@ -13,11 +13,18 @@ from .deps import build_app_state
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.om = build_app_state()
-    yield
+    await app.state.om.scheduler_manager.start()
     try:
-        await app.state.om.browser_pool.shutdown()
-    except Exception:
-        pass
+        yield
+    finally:
+        try:
+            await app.state.om.scheduler_manager.shutdown()
+        except Exception:
+            pass
+        try:
+            await app.state.om.browser_pool.shutdown()
+        except Exception:
+            pass
 
 
 def create_app() -> FastAPI:

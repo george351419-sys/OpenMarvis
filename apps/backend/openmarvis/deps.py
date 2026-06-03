@@ -16,6 +16,7 @@ class AppState:
     workspaces: WorkspaceManager
     memory: MemoryStore
     browser_pool: BrowserPool
+    scheduler_manager: object | None = None
 
 
 def build_app_state() -> AppState:
@@ -37,5 +38,45 @@ def build_app_state() -> AppState:
         probe_app_automation_permissions()
     except Exception:
         pass
-    return AppState(settings=settings, engine=engine, workspaces=workspaces,
-                    memory=memory, browser_pool=browser_pool)
+
+    from .scheduler.manager import ScheduleManager
+    from .scheduler.trigger_runner import run_scheduled_trigger
+    from .store.notifications import persist_notification
+
+    def _load_schedule(engine_, sid: str):
+        from sqlmodel import Session, select
+
+        from .store.models import Schedule
+        with Session(engine_) as ses:
+            return ses.exec(select(Schedule).where(Schedule.id == sid)).first()
+
+    # Use a holder so the closure captures the eventually-bound app_state.
+    _holder: dict = {"state": None}
+
+    async def _run_chat_for_schedule(virtual_conv_id, instruction, state):
+        from .api.chat import _execute_scheduled_chat
+        return await _execute_scheduled_chat(virtual_conv_id, instruction, state)
+
+    async def _on_fire(sid: str):
+        state_ref = _holder["state"]
+        if state_ref is None:
+            return
+        await run_scheduled_trigger(
+            schedule_id=sid,
+            state=state_ref,
+            load_schedule=_load_schedule,
+            run_chat=_run_chat_for_schedule,
+            persist_notification=persist_notification,
+        )
+
+    scheduler_manager = ScheduleManager(
+        db_dir=settings.workspace.root,
+        engine=engine,
+        on_fire=_on_fire,
+    )
+
+    state = AppState(settings=settings, engine=engine, workspaces=workspaces,
+                    memory=memory, browser_pool=browser_pool,
+                    scheduler_manager=scheduler_manager)
+    _holder["state"] = state
+    return state

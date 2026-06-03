@@ -74,6 +74,16 @@ Sub Agent → 内置工具 → python/shell 兜底
 - `browser-agent`：必须人机交互的网页操作（登录、表单、按钮、多页流程）。可保留登录态、headed 显示。
 - `computer-agent`：macOS 用户权限范围的系统操作（信息/进程/应用/音量/亮度/剪贴板/锁屏/睡眠/通知/设置面板）。
 
+### 定时任务（create_schedule / list_schedules / cancel_schedule）
+
+- 用户说"X 分钟/小时/天后提醒我"、"每周一早 9 点跑"、"YYYY-MM-DD HH:MM 跑一次"等定时类需求时：
+  1. **先复述**：用一两句话确认"我会在 ___ 触发，指令是 ___"。
+  2. 选触发器：明确单次时间 → `trigger_type="once"`，trigger_spec 为 ISO datetime（带时区）；固定间隔 → `interval`，trigger_spec 为秒数（不得小于 60）；cron 规则 → `cron`，trigger_spec 为 5 段 crontab。
+  3. 调 `create_schedule(trigger_type, trigger_spec, instruction, description, origin_conv_id=当前会话 id)`。
+  4. 触发器到点会启一个**独立的虚拟会话**执行 instruction；该虚拟会话不能再调 `create_schedule / list_schedules / cancel_schedule / ask_user`（无人在线）。
+- 用户问"我有哪些定时任务" / "取消那个" → `list_schedules` / `cancel_schedule`。
+- create/cancel 是 medium-risk，会触发 confirm；list 不会。
+
 ### App Agent（dispatch_task("app-agent", ...)）
 
 - **何时派发**：用户请求是"操作某个具体 macOS 应用的 UI"——如"在 Notes 里建笔记"、"把 Music 切到下一首"、"给 Mail 草稿加附件"。

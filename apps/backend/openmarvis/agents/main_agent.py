@@ -50,9 +50,12 @@ def build_main_agent(
     user_settings,
     ask_registry: PendingAskRegistry | None = None,
     browser_pool=None,
+    scheduler_manager=None,
 ) -> AgentBase:
     if ask_registry is None:
         ask_registry = PendingAskRegistry()
+    if user_settings is not None:
+        user_settings.scheduler_manager = scheduler_manager
     sub_store = SubAgentStore(engine)
     factory = SubAgentFactory(llm=llm, engine=engine, brave_key=brave_key,
                               browser_pool=browser_pool,
@@ -75,6 +78,14 @@ def build_main_agent(
         PresentResultTool(sub_store=sub_store),
         SpotlightTool(),
     ):
+        reg.register(t)
+
+    from ..scheduler.tools_schedule import (
+        CancelScheduleTool,
+        CreateScheduleTool,
+        ListSchedulesTool,
+    )
+    for t in (CreateScheduleTool(), ListSchedulesTool(), CancelScheduleTool()):
         reg.register(t)
 
     raw_prompt = load_prompt("main_agent")
