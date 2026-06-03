@@ -8,6 +8,7 @@ from ..prompts import load_prompt
 from ..security.policy import SecurityGate
 from ..store.sub_agents import SubAgentStore
 from ..tools.ask import AskUserTool, PendingAskRegistry
+from ..tools.base import Tool
 from ..tools.dispatch import DispatchTaskTool
 from ..tools.exec import PythonExecutorTool, ShellExecutorTool
 from ..tools.fs import (
@@ -62,7 +63,7 @@ def build_main_agent(
                               browser_pool=browser_pool,
                               ask_registry=ask_registry)
     reg = ToolRegistry()
-    for t in (
+    main_tools: tuple[Tool, ...] = (
         ReadTextTool(),
         WriteFileTool(engine=engine),
         EditFileTool(engine=engine),
@@ -78,7 +79,8 @@ def build_main_agent(
         DispatchTaskTool(factory=factory, sub_store=sub_store),
         PresentResultTool(sub_store=sub_store),
         SpotlightTool(),
-    ):
+    )
+    for t in main_tools:
         reg.register(t)
 
     from ..scheduler.tools_schedule import (
@@ -86,7 +88,10 @@ def build_main_agent(
         CreateScheduleTool,
         ListSchedulesTool,
     )
-    for t in (CreateScheduleTool(), ListSchedulesTool(), CancelScheduleTool()):
+    schedule_tools: tuple[Tool, ...] = (
+        CreateScheduleTool(), ListSchedulesTool(), CancelScheduleTool(),
+    )
+    for t in schedule_tools:
         reg.register(t)
 
     if skill_registry is not None:

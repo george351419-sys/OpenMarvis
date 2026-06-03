@@ -56,8 +56,10 @@ class SecurityGate:
             ra = tool.assess_risk(parsed, ctx=None)
         except Exception:
             ra = type("RA", (), {"level": tool.risk_level, "reasons": []})()
-        level_to_action = {"low": "allow", "medium": "confirm", "high": "confirm"}
-        action = level_to_action.get(ra.level, "allow")
+        level_to_action: dict[str, Action] = {
+            "low": "allow", "medium": "confirm", "high": "confirm",
+        }
+        action: Action = level_to_action.get(ra.level, "allow")
         return Decision(
             action=action,
             reason="; ".join(ra.reasons) or f"{tool.name} risk={ra.level}",

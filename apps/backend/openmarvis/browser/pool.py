@@ -4,7 +4,7 @@ import asyncio
 from pathlib import Path
 from typing import Any
 
-from playwright.async_api import async_playwright
+from playwright.async_api import Playwright, async_playwright
 
 from .settings import BrowserSettings
 
@@ -19,7 +19,7 @@ class BrowserPool:
     def __init__(self, *, settings: BrowserSettings, profile_dir_base: Path):
         self.settings = settings
         self.profile_dir_base = Path(profile_dir_base)
-        self._playwright = None
+        self._playwright: Playwright | None = None
         self._contexts: dict[str, Any] = {}        # key = "_shared" or conv_id
         self._lock = asyncio.Lock()
 
@@ -41,6 +41,7 @@ class BrowserPool:
         if key in self._contexts:
             return self._contexts[key]
         await self._ensure_started()
+        assert self._playwright is not None      # _ensure_started 保证
         profile_dir = self._profile_dir_for(conv_id)
         profile_dir.mkdir(parents=True, exist_ok=True)
         context = await self._playwright.chromium.launch_persistent_context(

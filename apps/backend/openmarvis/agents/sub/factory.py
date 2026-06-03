@@ -43,6 +43,7 @@ from ...memory.store import MemoryStore
 from ...prompts import load_prompt
 from ...security.policy import SecurityGate
 from ...tools.ask import AskUserTool, PendingAskRegistry
+from ...tools.base import Tool
 from ...tools.exec import PythonExecutorTool, ShellExecutorTool
 from ...tools.fs import (
     DeleteTool,
@@ -64,22 +65,21 @@ def _build_registry(agent_name: str, *, llm, engine, brave_key: str | None,  # n
                      browser_pool: BrowserPool | None = None,
                      ask_registry: PendingAskRegistry | None = None) -> ToolRegistry:
     reg = ToolRegistry()
+    tools: tuple[Tool, ...]
     if agent_name == "file-agent":
-        for t in (ReadTextTool(), WriteFileTool(engine=engine),
+        tools = (ReadTextTool(), WriteFileTool(engine=engine),
                   EditFileTool(engine=engine), DeleteTool(),
                   ListDirTool(), SearchFilesTool(),
                   ShellExecutorTool(), PythonExecutorTool(),
                   AnalyzeImageTool(llm=llm),
-                  SpotlightTool()):
-            reg.register(t)
+                  SpotlightTool())
     elif agent_name == "search-agent":
-        for t in (WebSearchTool(api_key=brave_key), WebFetchTool(),
-                  PythonExecutorTool()):
-            reg.register(t)
+        tools = (WebSearchTool(api_key=brave_key), WebFetchTool(),
+                  PythonExecutorTool())
     elif agent_name == "browser-agent":
         assert browser_pool is not None, "browser-agent 需要 BrowserPool"
         assert ask_registry is not None, "browser-agent 需要 PendingAskRegistry"
-        for t in (NavigateTool(pool=browser_pool),
+        tools = (NavigateTool(pool=browser_pool),
                   CurrentUrlTool(pool=browser_pool),
                   GoBackTool(pool=browser_pool),
                   ClickTool(pool=browser_pool),
@@ -90,11 +90,10 @@ def _build_registry(agent_name: str, *, llm, engine, brave_key: str | None,  # n
                   ExtractTextTool(pool=browser_pool),
                   ListElementsTool(pool=browser_pool),
                   EvaluateTool(pool=browser_pool),
-                  AskUserTool(registry=ask_registry)):
-            reg.register(t)
+                  AskUserTool(registry=ask_registry))
     elif agent_name == "computer-agent":
         assert ask_registry is not None, "computer-agent 需要 PendingAskRegistry"
-        for t in (SystemInfoTool(), DiskUsageTool(),
+        tools = (SystemInfoTool(), DiskUsageTool(),
                   ListProcessesTool(), FindProcessTool(),
                   OpenAppTool(), CloseAppTool(), AppStatusTool(), KillProcessTool(),
                   VolumeGetTool(), VolumeSetTool(), VolumeMuteTool(),
@@ -102,14 +101,13 @@ def _build_registry(agent_name: str, *, llm, engine, brave_key: str | None,  # n
                   OpenSettingsPaneTool(),
                   ClipboardReadTool(), ClipboardWriteTool(),
                   LockScreenTool(), SleepSystemTool(), NotificationTool(),
-                  AskUserTool(registry=ask_registry)):
-            reg.register(t)
+                  AskUserTool(registry=ask_registry))
     elif agent_name == "app-agent":
         assert ask_registry is not None, "app-agent 需要 PendingAskRegistry"
         ax = AXBackend()
         vision = VisionBackend(llm=llm)
         cliclick = CliclickRunner()
-        for t in (ListRunningAppsTool(ax=ax),
+        tools = (ListRunningAppsTool(ax=ax),
                   ListWindowsTool(ax=ax),
                   GetAXTreeTool(ax=ax),
                   ReadWindowTextTool(ax=ax),
@@ -121,10 +119,11 @@ def _build_registry(agent_name: str, *, llm, engine, brave_key: str | None,  # n
                   QuitAppTool(ax=ax),
                   VisionClickTool(ax=ax, vision=vision, cliclick=cliclick),
                   VisionTypeTool(ax=ax, vision=vision, cliclick=cliclick),
-                  AskUserTool(registry=ask_registry)):
-            reg.register(t)
+                  AskUserTool(registry=ask_registry))
     else:
         raise ValueError(f"unsupported sub agent: {agent_name}")
+    for t in tools:
+        reg.register(t)
     return reg
 
 

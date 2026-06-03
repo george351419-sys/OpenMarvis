@@ -29,7 +29,7 @@ class WebSearchTool(Tool):
         if not self.api_key:
             return ToolResult(error="web_search 未配置 BRAVE_SEARCH_API_KEY")
         headers = {"X-Subscription-Token": self.api_key, "Accept": "application/json"}
-        params = {"q": args.query, "count": args.max_results}
+        params: dict[str, str | int] = {"q": args.query, "count": args.max_results}
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.post(
                 "https://api.search.brave.com/res/v1/web/search",

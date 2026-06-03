@@ -32,7 +32,7 @@ async def list_conv(request: Request) -> list[dict]:
     engine = request.app.state.om.engine
     with Session(engine) as s:
         rows = s.exec(select(Conversation).where(Conversation.archived == False)  # noqa: E712
-                       .order_by(Conversation.updated_at.desc())).all()
+                       .order_by(Conversation.updated_at.desc())).all()  # type: ignore[attr-defined]
     return [{"id": r.id, "title": r.title, "created_at": r.created_at,
              "updated_at": r.updated_at} for r in rows]
 
@@ -54,6 +54,6 @@ async def list_messages(conv_id: str, request: Request) -> list[dict]:
     engine = request.app.state.om.engine
     with Session(engine) as s:
         rows = s.exec(select(Message).where(Message.conv_id == conv_id)
-                       .order_by(Message.id)).all()
+                       .order_by(Message.id)).all()  # type: ignore[arg-type]
     return [{"id": r.id, "role": r.role, "content": r.content,
              "thinking": r.thinking, "created_at": r.created_at} for r in rows]

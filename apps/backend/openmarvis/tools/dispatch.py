@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 
 from ..store.sub_agents import SubAgentStore
 from .base import Tool, ToolContext, ToolResult
+
+if TYPE_CHECKING:
+    from ..agents.base import AgentResult
 
 _RE_GOAL = re.compile(r"<overall_goal>(.*?)</overall_goal>", re.DOTALL)
 _RE_TASK = re.compile(r"<current_task>(.*?)</current_task>", re.DOTALL)
@@ -46,7 +50,8 @@ class DispatchTaskArgs(BaseModel):
     inherit_agent_id: str = Field(default="", description="可选：继承同 conv 已完成同名 Sub Agent")
 
 
-async def _run_sub_agent(sub, *, task: str, memory_ids: list[str]) -> object:
+async def _run_sub_agent(sub, *, task: str,
+                          memory_ids: list[str]) -> AgentResult:
     return await sub.run(user_message=task, memory_ids=memory_ids)
 
 
@@ -72,7 +77,8 @@ class DispatchTaskTool(Tool):
         if msgs:
             sub.message_history = msgs
 
-    async def _persist(self, sub, *, args: DispatchTaskArgs, result: object, ctx: ToolContext) -> None:
+    async def _persist(self, sub, *, args: DispatchTaskArgs,
+                        result: AgentResult, ctx: ToolContext) -> None:
         import json as _json
 
         await self.sub_store.save(

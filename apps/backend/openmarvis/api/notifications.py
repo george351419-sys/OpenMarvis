@@ -16,7 +16,7 @@ async def list_unread(request: Request, origin_conv_id: str | None = None) -> li
             ScheduleNotification.read == False)              # noqa: E712
         if origin_conv_id is not None:
             q = q.where(ScheduleNotification.origin_conv_id == origin_conv_id)
-        q = q.order_by(ScheduleNotification.created_at.desc())
+        q = q.order_by(ScheduleNotification.created_at.desc())  # type: ignore[attr-defined]
         rows = s.exec(q).all()
     return [
         {

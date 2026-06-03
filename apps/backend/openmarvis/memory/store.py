@@ -34,7 +34,7 @@ class MemoryStore:
         with Session(self.engine) as s:
             rows = s.exec(
                 select(MemoryEntry).where(
-                    MemoryEntry.id.in_(memory_ids),
+                    MemoryEntry.id.in_(memory_ids),                 # type: ignore[attr-defined]
                     MemoryEntry.conv_id == conv_id,
                 )
             ).all()
