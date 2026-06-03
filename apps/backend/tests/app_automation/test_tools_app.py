@@ -12,6 +12,7 @@ from openmarvis.app_automation.tools_app import (
     ReadWindowTextTool,
     ScreenshotWindowTool,
 )
+from openmarvis.security.policy import Decision
 
 
 def _ctx(workspace=None):
@@ -78,3 +79,60 @@ async def test_screenshot_window_returns_image_card(tmp_path):
     res = await tool.execute(
         tool.args_model(bundle_id="com.apple.Notes", window_index=0), ctx)
     assert any(c.type == "mv-image-gallery" for c in res.cards)
+
+
+@pytest.mark.asyncio
+async def test_activate_app():
+    backend = MagicMock()
+    from openmarvis.app_automation.tools_app import ActivateAppTool
+    tool = ActivateAppTool(ax=backend)
+    res = await tool.execute(tool.args_model(bundle_id="com.apple.Notes"), _ctx())
+    backend.activate_app.assert_called_once_with("com.apple.Notes")
+    assert "activated" in res.content.lower()
+
+
+@pytest.mark.asyncio
+async def test_quit_app_risk_is_medium():
+    from openmarvis.app_automation.tools_app import QuitAppTool
+    assert QuitAppTool.risk_level == "medium"
+
+
+@pytest.mark.asyncio
+async def test_click_ax_node_calls_backend():
+    backend = MagicMock()
+    from openmarvis.app_automation.tools_app import ClickAXNodeTool
+    tool = ClickAXNodeTool(ax=backend)
+    res = await tool.execute(
+        tool.args_model(node_ref="com.apple.Notes|0|0/1"), _ctx())
+    assert backend.click_ax_node.called
+    assert res.error is None
+
+
+@pytest.mark.asyncio
+async def test_type_text_blocks_credentials():
+    backend = MagicMock()
+    cred_guard = MagicMock()
+    cred_guard.check_text.return_value = Decision.block("looks like api key")
+    ctx = _ctx()
+    ctx.security.credential_guard = cred_guard
+
+    from openmarvis.app_automation.tools_app import TypeTextTool
+    tool = TypeTextTool(ax=backend)
+    res = await tool.execute(
+        tool.args_model(node_ref="com.apple.Notes|0|0/1",
+                          text="sk-ABCDE123"), ctx)
+    assert res.error is not None
+    assert "credential" in (res.error or "").lower()
+    backend.type_text.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_select_menu_walks_backend():
+    backend = MagicMock()
+    from openmarvis.app_automation.tools_app import SelectMenuTool
+    tool = SelectMenuTool(ax=backend)
+    res = await tool.execute(
+        tool.args_model(bundle_id="com.apple.Notes",
+                          path=["File", "New Note"]), _ctx())
+    backend.select_menu.assert_called_once_with("com.apple.Notes", ["File", "New Note"])
+    assert res.error is None

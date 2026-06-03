@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from ..tools.base import Card, Tool, ToolContext, ToolResult
 from .ax_backend import AXBackend, AXNode, AXNotAvailable
+from .node_ref import parse_node_ref
 
 
 def _serialize_ax(node: AXNode) -> dict:
@@ -145,3 +146,135 @@ class ScreenshotWindowTool(Tool):
         card = Card(type="mv-image-gallery",
                      payload=json.dumps({"images": [str(out_path)]}))
         return ToolResult(content=f"screenshot saved: {out_path}", cards=[card])
+
+
+
+class ActivateAppArgs(BaseModel):
+    bundle_id: str
+
+
+class ActivateAppTool(Tool):
+    name = "activate_app"
+    description = "把目标应用拉到前台。"
+    args_model = ActivateAppArgs
+    risk_level = "low"
+    available_to = ("app-agent",)
+
+    def __init__(self, ax: AXBackend):
+        self.ax = ax
+
+    async def execute(self, args: ActivateAppArgs, ctx: ToolContext) -> ToolResult:
+        try:
+            self.ax.activate_app(args.bundle_id)
+        except AXNotAvailable as e:
+            return ToolResult(error=f"app_not_found: {e}")
+        return ToolResult(content=f"activated: {args.bundle_id}")
+
+
+class QuitAppArgs(BaseModel):
+    bundle_id: str
+
+
+class QuitAppTool(Tool):
+    name = "quit_app"
+    description = "退出指定应用（可能丢失未保存数据 — medium risk）。"
+    args_model = QuitAppArgs
+    risk_level = "medium"
+    available_to = ("app-agent",)
+
+    def __init__(self, ax: AXBackend):
+        self.ax = ax
+
+    async def execute(self, args: QuitAppArgs, ctx: ToolContext) -> ToolResult:
+        try:
+            # 用 select_menu 走 App > Quit ；AX 树里"应用菜单"通常是 menu bar 第一个子项
+            self.ax.select_menu(args.bundle_id, [args.bundle_id, "Quit"])
+        except AXNotAvailable:
+            # fallback：osascript quit
+            import subprocess
+            try:
+                subprocess.run(
+                    ["osascript", "-e",
+                      f'tell application id "{args.bundle_id}" to quit'],
+                    check=True, timeout=5, capture_output=True)
+            except Exception as e:
+                return ToolResult(error=f"quit_failed: {e}")
+        return ToolResult(content=f"quit: {args.bundle_id}")
+
+
+class ClickAXNodeArgs(BaseModel):
+    node_ref: str
+
+
+class ClickAXNodeTool(Tool):
+    name = "click_ax_node"
+    description = "按 node_ref 点击控件（先用 get_ax_tree 拿到 ref）。"
+    args_model = ClickAXNodeArgs
+    risk_level = "low"
+    available_to = ("app-agent",)
+
+    def __init__(self, ax: AXBackend):
+        self.ax = ax
+
+    async def execute(self, args: ClickAXNodeArgs, ctx: ToolContext) -> ToolResult:
+        try:
+            ref = parse_node_ref(args.node_ref)
+            self.ax.click_ax_node(ref)
+        except ValueError as e:
+            return ToolResult(error=f"bad_node_ref: {e}")
+        except AXNotAvailable as e:
+            return ToolResult(error=f"click_failed: {e}")
+        return ToolResult(content=f"clicked: {args.node_ref}")
+
+
+class TypeTextArgs(BaseModel):
+    node_ref: str
+    text: str
+
+
+class TypeTextTool(Tool):
+    name = "type_text"
+    description = "在文本框节点写入文本（自动 CredentialGuard 拦截凭据）。"
+    args_model = TypeTextArgs
+    risk_level = "low"
+    available_to = ("app-agent",)
+
+    def __init__(self, ax: AXBackend):
+        self.ax = ax
+
+    async def execute(self, args: TypeTextArgs, ctx: ToolContext) -> ToolResult:
+        guard = ctx.security.credential_guard
+        decision = guard.check_text(args.text)
+        if decision.action == "block":
+            return ToolResult(error=f"credential_blocked: {decision.reason}")
+        try:
+            ref = parse_node_ref(args.node_ref)
+            self.ax.type_text(ref, args.text)
+        except ValueError as e:
+            return ToolResult(error=f"bad_node_ref: {e}")
+        except AXNotAvailable as e:
+            return ToolResult(error=f"type_failed: {e}")
+        return ToolResult(content="typed")
+
+
+class SelectMenuArgs(BaseModel):
+    bundle_id: str
+    path: list[str]
+
+
+class SelectMenuTool(Tool):
+    name = "select_menu"
+    description = "按菜单路径触发 menu item，如 ['File','New Note']。"
+    args_model = SelectMenuArgs
+    risk_level = "low"
+    available_to = ("app-agent",)
+
+    def __init__(self, ax: AXBackend):
+        self.ax = ax
+
+    async def execute(self, args: SelectMenuArgs, ctx: ToolContext) -> ToolResult:
+        try:
+            self.ax.select_menu(args.bundle_id, args.path)
+        except AXNotAvailable as e:
+            return ToolResult(error=f"menu_failed: {e}")
+        return ToolResult(content=f"menu_selected: {' > '.join(args.path)}")

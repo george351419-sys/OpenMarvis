@@ -23,3 +23,17 @@ def test_guard_clean_text_allows():
     g = CredentialGuard()
     d = g.scan("hello world")
     assert d.action == "allow"
+
+
+def test_check_text_blocks_apikey():
+    from openmarvis.security.credential_guard import CredentialGuard
+    guard = CredentialGuard()
+    d = guard.check_text("sk-ABCDE1234567890ABCDEFGHIJ")
+    assert d.action == "block"
+
+
+def test_check_text_allows_plain():
+    from openmarvis.security.credential_guard import CredentialGuard
+    guard = CredentialGuard()
+    d = guard.check_text("hello world")
+    assert d.action == "allow"

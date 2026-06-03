@@ -28,3 +28,9 @@ class CredentialGuard:
             if p.search(text):
                 return Decision.confirm("检测到疑似凭据，已脱敏；请确认输入安全", pattern=p.pattern)
         return Decision.allow()
+
+    def check_text(self, text: str) -> Decision:
+        for p in PATTERNS:
+            if p.search(text):
+                return Decision.block("credential_pattern_detected")
+        return Decision.allow()
