@@ -141,3 +141,29 @@ def test_select_menu_walks_path(monkeypatch):
     monkeypatch.setattr(backend, "_find_app", lambda b: fake_app)
     backend.select_menu("com.apple.Notes", ["File", "New Note"])
     assert calls == ["AXPress"]
+
+
+def test_screenshot_window_writes_png(tmp_path, monkeypatch):
+    backend = AXBackend()
+    fake_app = MagicMock()
+    fake_app.processIdentifier.return_value = 999
+    monkeypatch.setattr(backend, "_find_app", lambda b: fake_app)
+
+    # stub windows
+    monkeypatch.setattr(backend, "_window_id_for_index", lambda app, idx: 42)
+
+    captured = {}
+
+    def fake_capture(window_id, out_path):
+        # write a 1-byte placeholder so the file exists
+        from pathlib import Path
+        Path(out_path).write_bytes(b"\x89PNG\r\n\x1a\n")
+        captured["window_id"] = window_id
+        captured["path"] = out_path
+
+    import openmarvis.app_automation.ax_backend as m
+    monkeypatch.setattr(m, "_capture_window_to_png", fake_capture, raising=False)
+
+    out = backend.screenshot_window("com.apple.Notes", 0, tmp_path / "shot.png")
+    assert out.exists()
+    assert captured["window_id"] == 42

@@ -211,6 +211,32 @@ class AXBackend:
         if err and err != 0:
             raise AXNotAvailable(f"menu AXPress failed: err={err}")
 
+    def _window_id_for_index(self, app, window_index: int) -> int | None:
+        """通过 CGWindowList 在屏窗口中按 pid + 序号定位 CGWindowID。"""
+        from Quartz import (
+            CGWindowListCopyWindowInfo,
+            kCGNullWindowID,
+            kCGWindowListOptionOnScreenOnly,
+        )
+        infos = CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly, kCGNullWindowID) or []
+        pid = int(app.processIdentifier())
+        hits = [w for w in infos
+                if int(w.get("kCGWindowOwnerPID", -1)) == pid]
+        if window_index >= len(hits):
+            return None
+        return int(hits[window_index].get("kCGWindowNumber", -1))
+
+    def screenshot_window(self, bundle_id: str, window_index: int, out_path):
+        from pathlib import Path
+        app = self._find_app(bundle_id)
+        if app is None:
+            raise AXNotAvailable(f"app not running: {bundle_id}")
+        wid = self._window_id_for_index(app, window_index)
+        if wid is None or wid < 0:
+            raise AXNotAvailable("window not found in CGWindowList")
+        _capture_window_to_png(wid, Path(out_path))
+        return Path(out_path)
+
 
 @dataclass
 class AXNode:
@@ -242,3 +268,35 @@ def collect_text(node: AXNode) -> str:
         if sub:
             out.append(sub)
     return "\n".join(out)
+
+
+def _capture_window_to_png(window_id: int, out_path) -> None:        # pragma: no cover (mac runtime)
+    from pathlib import Path
+
+    from Quartz import (
+        CGRectNull,
+        CGWindowListCreateImage,
+        kCGWindowImageBoundsIgnoreFraming,
+        kCGWindowListOptionIncludingWindow,
+    )
+    img = CGWindowListCreateImage(CGRectNull, kCGWindowListOptionIncludingWindow,
+                                    int(window_id), kCGWindowImageBoundsIgnoreFraming)
+    if img is None:
+        raise AXNotAvailable("CGWindowListCreateImage returned None")
+    _write_cgimage_png(img, Path(out_path))
+
+
+def _write_cgimage_png(cgimage, out_path) -> None:                    # pragma: no cover
+    from CoreFoundation import CFURLCreateWithFileSystemPath, kCFURLPOSIXPathStyle
+    from Quartz import (
+        CGImageDestinationAddImage,
+        CGImageDestinationCreateWithURL,
+        CGImageDestinationFinalize,
+    )
+    url = CFURLCreateWithFileSystemPath(None, str(out_path), kCFURLPOSIXPathStyle, False)
+    dst = CGImageDestinationCreateWithURL(url, "public.png", 1, None)
+    if dst is None:
+        raise AXNotAvailable("CGImageDestinationCreateWithURL failed")
+    CGImageDestinationAddImage(dst, cgimage, None)
+    if not CGImageDestinationFinalize(dst):
+        raise AXNotAvailable("CGImageDestinationFinalize failed")
