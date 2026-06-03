@@ -25,6 +25,16 @@ make dev
 
 打开 http://localhost:3000。
 
+### macOS 系统依赖（App Agent 用）
+
+```bash
+brew install cliclick     # Vision fallback 点击驱动
+brew install pandoc       # document_convert skill 用
+```
+
+首次运行时，系统会请求 "Accessibility" 与 "Screen Recording" 权限：
+"系统设置 → 隐私与安全性 → 辅助功能 / 屏幕录制" 中勾选 OpenMarvis（或运行它的终端 / Python）。
+
 ## 文档
 
 - 架构 spec：`docs/superpowers/specs/2026-06-01-openmarvis-design.md`

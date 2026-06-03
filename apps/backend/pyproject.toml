@@ -24,6 +24,9 @@ dependencies = [
   "Pillow>=10.4",
   "pypdf>=4.3",
   "playwright>=1.45,<2.0",
+  "pyobjc-framework-Cocoa>=10.3",
+  "pyobjc-framework-Quartz>=10.3",
+  "pyobjc-framework-ApplicationServices>=10.3",
 ]
 
 [project.optional-dependencies]
