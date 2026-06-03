@@ -41,6 +41,7 @@ brew install pandoc       # document_convert skill 用
 
 - 架构 spec：`docs/superpowers/specs/2026-06-01-openmarvis-design.md`
 - 实施计划：`docs/superpowers/plans/2026-06-01-openmarvis-m0-m1-mvp.md`
+- 测试指南：[`docs/TESTING.md`](docs/TESTING.md)
 - 贡献指南：`CONTRIBUTING.md`
 
 ## v1.0.0 试一试
