@@ -60,7 +60,7 @@ export function NotificationBell() {
         )}
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-80 max-h-96 overflow-y-auto
+        <div className="absolute left-0 top-full mt-1 w-80 max-h-96 overflow-y-auto
                           rounded border border-border bg-background shadow-lg z-50">
           <div className="px-3 py-2 border-b border-border text-xs text-muted-foreground">
             未读通知 {count > 0 ? `(${count})` : ""}
