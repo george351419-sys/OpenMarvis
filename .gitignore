@@ -18,6 +18,16 @@ node_modules/
 dist/
 *.tsbuildinfo
 
+# Next.js 自动生成
+next-env.d.ts
+
+# Playwright trace artifacts
+test-results/
+playwright-report/
+
+# Claude Code 本地状态
+.claude/
+
 # IDE
 .vscode/
 .idea/
