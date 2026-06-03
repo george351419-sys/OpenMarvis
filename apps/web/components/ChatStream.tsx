@@ -4,14 +4,17 @@ import { useState } from "react";
 
 import { FileUploader } from "./FileUploader";
 import { MessageBubble } from "./MessageBubble";
+import { TimelineToggle } from "./timeline/TimelinePanel";
 import { streamChat } from "@/lib/streamChat";
 import { useChat } from "@/lib/store";
+import { useTimeline } from "@/lib/stores/timeline";
 
 export function ChatStream({ convId }: { convId: string }) {
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const store = useChat();
+  const timeline = useTimeline();
 
   const send = async () => {
     if (!input.trim() && attachments.length === 0) return;
@@ -23,6 +26,7 @@ export function ChatStream({ convId }: { convId: string }) {
     try {
       await streamChat({ conv_id: convId, message: text, attachments }, {
         onEvent: (ev, data) => {
+          timeline.ingest(ev, data);
           switch (ev) {
             case "thinking_delta": store.appendThinking(data.text); break;
             case "content_delta": store.appendContent(data.text); break;
@@ -51,6 +55,10 @@ export function ChatStream({ convId }: { convId: string }) {
 
   return (
     <div className="flex flex-col h-screen">
+      <div className="px-3 py-2 border-b border-border flex items-center
+                        justify-end gap-1">
+        <TimelineToggle />
+      </div>
       <div className="flex-1 overflow-y-auto p-6">
         {store.userMessages.map((m, i) => (
           <div key={m.id}>
