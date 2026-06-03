@@ -1,0 +1,172 @@
+from __future__ import annotations
+
+import logging
+import uuid
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from pathlib import Path
+
+from apscheduler.jobstores.memory import MemoryJobStore
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.date import DateTrigger
+from apscheduler.triggers.interval import IntervalTrigger
+
+log = logging.getLogger(__name__)
+
+
+class ScheduleSpecError(ValueError):
+    """trigger_spec 非法。"""
+
+
+@dataclass
+class ScheduleRow:
+    id: str
+    origin_conv_id: str
+    trigger_type: str
+    trigger_spec: str
+    instruction: str
+    description: str
+    next_run_at: datetime | None
+
+
+def _now_ts() -> int:
+    return int(datetime.now(UTC).timestamp())
+
+
+def _new_sid() -> str:
+    return f"sch_{uuid.uuid4().hex[:12]}"
+
+
+class ScheduleManager:
+    """APScheduler 单例包装，提供 once/interval/cron 三种触发。"""
+
+    def __init__(self, *, db_dir: Path, engine,
+                 on_fire: Callable[[str], Awaitable[None] | None]):
+        self.db_dir = Path(db_dir)
+        self.db_dir.mkdir(parents=True, exist_ok=True)
+        self.engine = engine
+        self._on_fire = on_fire
+        # Use MemoryJobStore: APScheduler can't serialize closures to SQL.
+        # Durable persistence is via the Schedule SQLModel table (_persist below);
+        # lifespan rehydration of scheduled jobs is handled by the caller.
+        self._sched = AsyncIOScheduler(
+            jobstores={"default": MemoryJobStore()}, timezone="UTC")
+
+    async def start(self) -> None:
+        self._sched.start()
+
+    async def shutdown(self) -> None:
+        self._sched.shutdown(wait=False)
+
+    def _wrap_callback(self, sid: str):
+        async def _fn():
+            result = self._on_fire(sid)
+            if hasattr(result, "__await__"):
+                await result
+        return _fn
+
+    def add_once(self, run_at: datetime, *, instruction: str, description: str,
+                  origin_conv_id: str) -> str:
+        sid = _new_sid()
+        trig = DateTrigger(run_date=run_at)
+        self._sched.add_job(self._wrap_callback(sid), trigger=trig,
+                             id=sid, name=description or "once",
+                             replace_existing=True)
+        self._persist(sid, "once", run_at.isoformat(),
+                       instruction, description, origin_conv_id)
+        return sid
+
+    def add_interval(self, *, every_seconds: int, instruction: str,
+                      description: str, origin_conv_id: str) -> str:
+        if every_seconds < 60:
+            raise ScheduleSpecError("interval 不得小于 60 秒")
+        sid = _new_sid()
+        trig = IntervalTrigger(seconds=every_seconds)
+        self._sched.add_job(self._wrap_callback(sid), trigger=trig,
+                             id=sid, name=description or "interval",
+                             replace_existing=True)
+        self._persist(sid, "interval", str(every_seconds),
+                       instruction, description, origin_conv_id)
+        return sid
+
+    def add_cron(self, *, expr: str, instruction: str,
+                  description: str, origin_conv_id: str) -> str:
+        try:
+            trig = CronTrigger.from_crontab(expr)
+        except Exception as e:
+            raise ScheduleSpecError(f"无效 cron 表达式: {e}") from e
+        sid = _new_sid()
+        self._sched.add_job(self._wrap_callback(sid), trigger=trig,
+                             id=sid, name=description or "cron",
+                             replace_existing=True)
+        self._persist(sid, "cron", expr, instruction, description, origin_conv_id)
+        return sid
+
+    def list(self) -> list[ScheduleRow]:
+        out: list[ScheduleRow] = []
+        for job in self._sched.get_jobs():
+            row = self._read_row(job.id)
+            if row is None:
+                continue
+            row.next_run_at = job.next_run_time
+            out.append(row)
+        return out
+
+    def cancel(self, sid: str) -> bool:
+        try:
+            self._sched.remove_job(sid)
+        except Exception:
+            return False
+        self._delete_row(sid)
+        return True
+
+    # -- persistence ---------------------------------------------------------
+
+    def _persist(self, sid: str, trigger_type: str, trigger_spec: str,
+                  instruction: str, description: str, origin_conv_id: str) -> None:
+        if self.engine is None:
+            return
+        from sqlmodel import Session
+
+        from ..store.models import Schedule
+        with Session(self.engine) as ses:
+            ses.add(Schedule(
+                id=sid, origin_conv_id=origin_conv_id,
+                trigger_type=trigger_type, trigger_spec=trigger_spec,
+                instruction=instruction, description=description,
+                created_at=_now_ts(),
+            ))
+            ses.commit()
+
+    def _read_row(self, sid: str) -> ScheduleRow | None:
+        if self.engine is None:
+            return ScheduleRow(id=sid, origin_conv_id="?", trigger_type="?",
+                                trigger_spec="?", instruction="?",
+                                description="?", next_run_at=None)
+        from sqlmodel import Session, select
+
+        from ..store.models import Schedule
+        with Session(self.engine) as ses:
+            r = ses.exec(select(Schedule).where(Schedule.id == sid)).first()
+            if r is None:
+                return None
+            return ScheduleRow(id=r.id, origin_conv_id=r.origin_conv_id,
+                                trigger_type=r.trigger_type,
+                                trigger_spec=r.trigger_spec,
+                                instruction=r.instruction,
+                                description=r.description,
+                                next_run_at=None)
+
+    def _delete_row(self, sid: str) -> None:
+        if self.engine is None:
+            return
+        from sqlmodel import Session, select
+
+        from ..store.models import Schedule
+        with Session(self.engine) as ses:
+            r = ses.exec(select(Schedule).where(Schedule.id == sid)).first()
+            if r is not None:
+                ses.delete(r)
+                ses.commit()
