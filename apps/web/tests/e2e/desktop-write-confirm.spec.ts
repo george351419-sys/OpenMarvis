@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test";
 
+test.skip(!process.env.OPENMARVIS_E2E_LIVE, "需要 ANTHROPIC_API_KEY + OPENMARVIS_E2E_LIVE=1");
+
 test("write to ~/Desktop triggers PathGuard ask_user", async ({ page }) => {
   await page.goto("/");
   await page.waitForURL(/\/c\//);

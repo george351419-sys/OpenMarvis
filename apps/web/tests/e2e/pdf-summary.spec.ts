@@ -1,6 +1,8 @@
 import { test, expect } from "@playwright/test";
 import path from "node:path";
 
+test.skip(!process.env.OPENMARVIS_E2E_LIVE, "需要 ANTHROPIC_API_KEY + OPENMARVIS_E2E_LIVE=1");
+
 test("upload PDF → File Agent summarizes → mv-product appears", async ({ page }) => {
   await page.goto("/");
   await page.waitForURL(/\/c\//, { timeout: 15_000 });
