@@ -9,7 +9,9 @@ from pydantic import BaseModel, Field
 
 from ..tools.base import Card, Tool, ToolContext, ToolResult
 from .ax_backend import AXBackend, AXNode, AXNotAvailable
+from .cliclick_runner import CliclickError, CliclickRunner
 from .node_ref import parse_node_ref
+from .vision_backend import VisionBackend, VisionLocateError
 
 
 def _serialize_ax(node: AXNode) -> dict:
@@ -278,3 +280,76 @@ class SelectMenuTool(Tool):
         except AXNotAvailable as e:
             return ToolResult(error=f"menu_failed: {e}")
         return ToolResult(content=f"menu_selected: {' > '.join(args.path)}")
+
+
+class VisionClickArgs(BaseModel):
+    bundle_id: str
+    query: str
+    window_index: int = 0
+
+
+class VisionClickTool(Tool):
+    name = "vision_click"
+    description = "AX 找不到目标时的兜底：截屏 → LLM 定位 → cliclick 点击。"
+    args_model = VisionClickArgs
+    risk_level = "medium"
+    available_to = ("app-agent",)
+
+    def __init__(self, ax: AXBackend, vision: VisionBackend, cliclick: CliclickRunner):
+        self.ax = ax
+        self.vision = vision
+        self.cliclick = cliclick
+
+    async def execute(self, args: VisionClickArgs, ctx: ToolContext) -> ToolResult:
+        out_dir = Path(ctx.workspace.output_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        shot = out_dir / f"vc_{int(time.time())}_{uuid.uuid4().hex[:6]}.png"
+        try:
+            self.ax.screenshot_window(args.bundle_id, args.window_index, shot)
+        except AXNotAvailable as e:
+            return ToolResult(error=f"screenshot_failed: {e}")
+        try:
+            x, y = await self.vision.locate(args.query, shot)
+        except VisionLocateError as e:
+            return ToolResult(error=f"vision_locate_failed: {e}")
+        try:
+            await self.cliclick.click(x, y)
+        except CliclickError as e:
+            return ToolResult(error=f"cliclick_failed: {e}")
+        return ToolResult(content=f"vision_clicked @ ({x},{y})")
+
+
+class VisionTypeArgs(BaseModel):
+    bundle_id: str
+    query: str
+    text: str
+    window_index: int = 0
+
+
+class VisionTypeTool(Tool):
+    name = "vision_type"
+    description = "AX 找不到输入框时的兜底：定位 + 点击 + 输入。CredentialGuard 拦截凭据。"
+    args_model = VisionTypeArgs
+    risk_level = "medium"
+    available_to = ("app-agent",)
+
+    def __init__(self, ax: AXBackend, vision: VisionBackend, cliclick: CliclickRunner):
+        self.ax = ax
+        self.vision = vision
+        self.cliclick = cliclick
+
+    async def execute(self, args: VisionTypeArgs, ctx: ToolContext) -> ToolResult:
+        decision = ctx.security.credential_guard.check_text(args.text)
+        if decision.action == "block":
+            return ToolResult(error=f"credential_blocked: {decision.reason}")
+        out_dir = Path(ctx.workspace.output_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        shot = out_dir / f"vt_{int(time.time())}_{uuid.uuid4().hex[:6]}.png"
+        try:
+            self.ax.screenshot_window(args.bundle_id, args.window_index, shot)
+            x, y = await self.vision.locate(args.query, shot)
+            await self.cliclick.click(x, y)
+            await self.cliclick.type_text(args.text)
+        except (AXNotAvailable, VisionLocateError, CliclickError) as e:
+            return ToolResult(error=f"vision_type_failed: {e}")
+        return ToolResult(content=f"vision_typed @ ({x},{y})")

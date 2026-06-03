@@ -136,3 +136,59 @@ async def test_select_menu_walks_backend():
                           path=["File", "New Note"]), _ctx())
     backend.select_menu.assert_called_once_with("com.apple.Notes", ["File", "New Note"])
     assert res.error is None
+
+
+@pytest.mark.asyncio
+async def test_vision_click_is_medium_risk():
+    from openmarvis.app_automation.tools_app import VisionClickTool
+    assert VisionClickTool.risk_level == "medium"
+
+
+@pytest.mark.asyncio
+async def test_vision_click_workflow(tmp_path):
+    ax = MagicMock()
+    vb = MagicMock()
+    runner = MagicMock()
+
+    out_file = tmp_path / "shot.png"
+    out_file.write_bytes(b"\x89PNG")
+    ax.screenshot_window.return_value = out_file
+
+    async def fake_locate(q, p): return (101, 202)
+    async def fake_click(x, y): return None
+    vb.locate = fake_locate
+    runner.click = fake_click
+
+    ctx = _ctx()
+    ctx.workspace.output_dir = tmp_path
+
+    from openmarvis.app_automation.tools_app import VisionClickTool
+    tool = VisionClickTool(ax=ax, vision=vb, cliclick=runner)
+    res = await tool.execute(
+        tool.args_model(bundle_id="com.apple.Notes", query="发送按钮"), ctx)
+    assert res.error is None
+    assert "101" in res.content or "clicked" in res.content
+
+
+@pytest.mark.asyncio
+async def test_vision_type_blocks_credentials(tmp_path):
+    ax = MagicMock()
+    vb = MagicMock()
+    runner = MagicMock()
+    out_file = tmp_path / "s.png"
+    out_file.write_bytes(b"")
+    ax.screenshot_window.return_value = out_file
+
+    cred_guard = MagicMock()
+    cred_guard.check_text.return_value = Decision.block("api key")
+    ctx = _ctx()
+    ctx.workspace.output_dir = tmp_path
+    ctx.security.credential_guard = cred_guard
+
+    from openmarvis.app_automation.tools_app import VisionTypeTool
+    tool = VisionTypeTool(ax=ax, vision=vb, cliclick=runner)
+    res = await tool.execute(
+        tool.args_model(bundle_id="com.apple.Notes", query="输入框",
+                          text="sk-ABCDE"), ctx)
+    assert res.error is not None
+    assert "credential" in res.error.lower()
