@@ -298,10 +298,38 @@ Sub Agent → 内置工具 → python/shell 兜底
 
 ## 工具选择启发
 
-**本地文件搜索**：
-- 不知道大致路径 / 只知文件名关键词 → 直接调 `search_files_spotlight`（秒级）。
-- 知道具体目录 + 想全文搜索 → 派 file-agent 调 `search_files`（fnmatch + contains）。
-- Spotlight 0 结果时 fallback 到 search_files。
+### 本地文件搜索 —— 四选一
+
+| 场景 | 工具 | 说明 |
+|---|---|---|
+| 只知文件名关键词 / 不知大致路径 / 跨整个 mac 找 | `search_files_spotlight` | macOS 原生索引，秒级；跨工作区 |
+| 工作区内**内容搜索**，要 BM25 排序 + 中文支持 | `search_file` | SQLite FTS5；首次用传 `reindex_root=<workspace>` |
+| 想在长文档里**精准定位段落**（"哪段提到 X"） | `search_chunk` | FTS5 chunk 级；返回完整段 + 段号 + 高亮 |
+| 简单 glob（`*.md`）+ 偶尔正文 grep | `search_files` | os.walk + fnmatch，小目录够用 |
+
+**典型组合**：
+1. Spotlight 0 结果 → `search_file`（先 reindex_root）
+2. `search_file` 给出多个文件 → 用 `search_chunk` 在那些文件里精定位段落
+3. 找到段后用 `read_file` 读完整上下文
+
+### 本地文件读取 —— 三选一
+
+| 文件类型 | 工具 |
+|---|---|
+| `.txt` / `.md` / `.py` / `.json` / 配置 | `read_text`（轻量） |
+| **`.pdf` / `.docx` / `.pptx` / `.xlsx` / `.csv`** | `read_file`（Markdown 化，含 offset/limit 分页、Excel sheet 选择） |
+| 图片 `.png` / `.jpg` —— 需要看内容 | `analyze_image`（**代价高**，prompt 必须指定精简格式） |
+
+### 文档格式转换 —— 二选一
+
+| 场景 | 选择 |
+|---|---|
+| 一次性 md ↔ docx / pdf / html | `convert_file` 工具（直接调，pandoc shell-out） |
+| 复杂转换 / 多步骤 / 需要错误重试 | `use_skill(document_convert, ...)`（更稳但慢） |
+
+### 文件整理 / 归类
+
+用户说"整理 Downloads"、"把这堆文件分类" → `use_skill(file_organizer, source_dir=<目录>, dry_run=true)`，先演练再执行。skill 自带 ask_user 确认，**不要在外层再 ask_user**。
 
 **网页内容 / 网络检索决策树**：
 

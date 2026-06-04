@@ -1,0 +1,53 @@
+name: pdf
+version: 1.0.0
+description: |
+  PDF utilities — extract text, split into single-page PDFs, merge multiple
+  PDFs into one. Backed by the pypdf package (already in core deps).
+  Pure local operation, no external commands.
+author: OpenMarvis
+license: Apache-2.0
+risk: medium
+
+params:
+  action:
+    type: string
+    description: |
+      One of:
+      - 'extract' : extract text from a PDF to a .md file (uses pypdf only;
+                    for high-fidelity OCR / table extraction, use read_file
+                    or a domain Skill instead)
+      - 'split'   : split a PDF into one .pdf per page
+      - 'merge'   : concatenate multiple PDFs into one output PDF
+    enum: [extract, split, merge]
+    required: true
+
+  source_paths:
+    type: array
+    description: |
+      For extract / split: single-element list with the source PDF.
+      For merge: ordered list of PDFs to concatenate. All paths must be
+      absolute and exist.
+    required: true
+
+  output_path:
+    type: string
+    description: |
+      For extract: target .md file path (absolute).
+      For merge:   target .pdf file path (absolute).
+      For split:   target *directory* (absolute); files written as
+                   <stem>_p001.pdf, <stem>_p002.pdf, ...
+      If omitted, defaults under workspace's output/.
+    required: false
+
+  page_range:
+    type: string
+    description: |
+      Optional, for extract / split only.
+      Page range like "1-5,8,12-15" (1-based, inclusive). Defaults to all pages.
+    required: false
+
+allowed_tools:
+  - read_text
+  - write_file
+  - list_dir
+  - python_executor
