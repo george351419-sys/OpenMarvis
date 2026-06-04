@@ -17,14 +17,28 @@ def encode_image_b64(path: str) -> str:
     return f"data:{mime};base64,{data}"
 
 
+_BRIEF_GUARD = (
+    "\n\n[输出约束] 请极简：只列要点/答案，禁止铺垫与寒暄；多图按 1./2./... 编号。"
+)
+
+
 class AnalyzeImageArgs(BaseModel):
     file_paths: list[str] = Field(description="图片绝对路径列表（1~10 张）")
-    prompt: str = Field(default="", description="针对图片的问题或指令，需要求精简输出")
+    prompt: str = Field(
+        default="",
+        description=(
+            "针对图片的具体问题。视觉调用代价高，必须在 prompt 里写明"
+            "希望看到的精简格式（如'只输出 OCR 文字'/'三句话总结'）。"
+        ),
+    )
 
 
 class AnalyzeImageTool(Tool):
     name = "analyze_image"
-    description = "图像理解/OCR 工具，单次最多 10 张。务必在 prompt 中要求精简输出。"
+    description = (
+        "图像理解/OCR 工具，**单次最多 10 张**。视觉模型代价高、容易啰嗦——"
+        "调用时必须在 prompt 中明确精简格式。"
+    )
     args_model = AnalyzeImageArgs
     risk_level = "low"
     available_to = ("main", "file-agent")
@@ -49,6 +63,7 @@ class AnalyzeImageTool(Tool):
                            "media_type": mimetypes.guess_type(path)[0] or "image/png",
                            "data": encode_image_b64(path).split("base64,", 1)[1]},
             })
-        content_blocks.append({"type": "text", "text": args.prompt or "请精简描述这些图片。"})
+        user_prompt = args.prompt.strip() or "请描述这些图片的关键信息"
+        content_blocks.append({"type": "text", "text": user_prompt + _BRIEF_GUARD})
         result_text = await self.llm.complete_sync(messages=[{"role": "user", "content": content_blocks}])
         return ToolResult(content=result_text)

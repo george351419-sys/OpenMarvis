@@ -86,6 +86,35 @@ async def test_edit_replace_unique(ctx):
     assert target.read_text() == "baz bar"
 
 
+async def test_edit_preserves_crlf(ctx):
+    # Windows 风格文件：LLM 用 \n 描述 old/new，工具应内部归一化匹配，
+    # 写回时保留 CRLF。
+    c, _ = ctx
+    target = c.workspace.output_dir / "win.md"
+    target.write_bytes(b"line1\r\nfoo\r\nline3\r\n")
+    r = await EditFileTool().execute(
+        EditFileTool.args_model(file_path=str(target),
+                                  old_str="foo", new_str="bar"),
+        c,
+    )
+    assert r.error is None
+    # 写回还是 CRLF
+    assert target.read_bytes() == b"line1\r\nbar\r\nline3\r\n"
+
+
+async def test_edit_preserves_lf_when_no_crlf(ctx):
+    c, _ = ctx
+    target = c.workspace.output_dir / "unix.md"
+    target.write_bytes(b"line1\nfoo\nline3\n")
+    r = await EditFileTool().execute(
+        EditFileTool.args_model(file_path=str(target),
+                                  old_str="foo", new_str="bar"),
+        c,
+    )
+    assert r.error is None
+    assert target.read_bytes() == b"line1\nbar\nline3\n"
+
+
 async def test_edit_requires_unique_match(ctx):
     c, _ = ctx
     target = c.workspace.output_dir / "z.md"

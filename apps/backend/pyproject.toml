@@ -30,6 +30,7 @@ dependencies = [
   "apscheduler>=3.10,<4.0",
   "pyyaml>=6.0",
   "sqlalchemy>=2.0",
+  "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]

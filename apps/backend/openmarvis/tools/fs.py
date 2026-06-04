@@ -119,6 +119,15 @@ class EditFileTool(Tool):
     def __init__(self, engine=None):
         self.engine = engine
 
+    @staticmethod
+    def _detect_eol(raw: str) -> str:
+        """探测原文换行风格；返回 '\\r\\n' / '\\r' / '\\n'。默认 \\n。"""
+        if "\r\n" in raw:
+            return "\r\n"
+        if "\r" in raw and "\n" not in raw:
+            return "\r"
+        return "\n"
+
     async def execute(self, args: EditFileArgs, ctx: ToolContext) -> ToolResult:
         decision = ctx.security.check(tool=self, tool_name=self.name, args=args.model_dump())
         if decision.action == "block":
@@ -128,7 +137,15 @@ class EditFileTool(Tool):
         p = Path(args.file_path).expanduser()
         if not p.exists():
             return ToolResult(error=f"文件不存在: {p}")
-        text = p.read_text()
+        # newline="" 关闭 universal newlines；默认 open 会把 \r\n 转成 \n，
+        # 那样下面的 _detect_eol 就永远看不到 CRLF。Path.read_text 在 3.11 不支
+        # 持 newline 参数（3.13+ 才加），所以显式 open。
+        with p.open("r", encoding="utf-8", newline="") as f:
+            raw = f.read()
+        # 把 CRLF/CR 都先规范成 LF 再做匹配 —— LLM 给的 old_str / new_str 几乎总是 \n。
+        # 写回时按原文件的换行风格还原，避免把 Windows 文件意外改成 unix 风格。
+        eol = self._detect_eol(raw)
+        text = raw.replace("\r\n", "\n").replace("\r", "\n")
         if args.replace_all:
             new_text = text.replace(args.old_str, args.new_str)
             count = text.count(args.old_str)
@@ -139,7 +156,10 @@ class EditFileTool(Tool):
             if count > 1:
                 return ToolResult(error=f"匹配不唯一（{count} 次），请扩大上下文或用 replace_all")
             new_text = text.replace(args.old_str, args.new_str, 1)
-        p.write_text(new_text, encoding="utf-8")
+        if eol != "\n":
+            new_text = new_text.replace("\n", eol)
+        with p.open("w", encoding="utf-8", newline="") as f:
+            f.write(new_text)
         if self.engine is not None:
             record_write(self.engine, conv_id=ctx.conv_id, path=str(p))
         return ToolResult(content=f"已编辑: {p}（替换 {count} 处）")
