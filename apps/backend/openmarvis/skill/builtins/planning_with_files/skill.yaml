@@ -1,0 +1,78 @@
+name: planning_with_files
+version: 1.0.0
+description: |
+  Persisted progress framework for long-running batch tasks over many files.
+  Materializes a plan.json on disk, processes items one by one updating
+  status as it goes, and supports resume from the last incomplete item if
+  the task is re-invoked.
+  Solves the "context window ran out / job crashed at item 32 / now what"
+  problem for tasks like "summarize these 50 PDFs" or "rename these 200
+  photos".
+author: OpenMarvis
+license: Apache-2.0
+risk: medium
+
+params:
+  goal:
+    type: string
+    description: |
+      One-sentence task description, e.g.:
+      'Summarize each PDF into a one-page Markdown brief'.
+      Used as both display name in the plan and the per-item instruction
+      template when per_item_task is not given.
+    required: true
+
+  items:
+    type: array
+    description: |
+      Inputs to process. Usually absolute file paths but can be any
+      JSON-serializable values (URLs, query strings, etc). Order is
+      preserved — items are processed sequentially.
+    required: true
+
+  plan_path:
+    type: string
+    description: |
+      Absolute path to the plan.json file. Acts as the persistence
+      checkpoint. If omitted, defaults to
+      <workspace>/temp/plan_<goal_slug>_<ts>.json.
+    required: false
+
+  per_item_task:
+    type: string
+    description: |
+      Optional Python-format template for the per-item action.
+      Available placeholders: {item}, {idx}, {name}, {stem}, {ext},
+      {workspace_output}.
+      If omitted, the skill generates a generic instruction from `goal`.
+    required: false
+
+  resume:
+    type: boolean
+    description: |
+      If true and plan_path already exists, continue from the first
+      item whose status is not 'done'. Default true.
+      If false, a fresh plan overwrites any existing one.
+    required: false
+
+  max_iterations:
+    type: integer
+    description: |
+      Safety cap. Stop after this many items per invocation even if more
+      remain (call the skill again to continue). Default 30; minimum 1;
+      maximum 200.
+    required: false
+
+allowed_tools:
+  - read_text
+  - read_file
+  - write_file
+  - edit_file
+  - list_dir
+  - search_files
+  - search_file
+  - search_chunk
+  - convert_file
+  - python_executor
+  - shell_executor
+  - ask_user
