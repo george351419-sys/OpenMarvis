@@ -54,8 +54,10 @@ from ...tools.fs import (
     WriteFileTool,
 )
 from ...tools.image import AnalyzeImageTool
+from ...tools.convert_file import ConvertFileTool
 from ...tools.read_file import ReadFileTool
 from ...tools.registry import ToolRegistry
+from ...tools.search_chunk import SearchChunkTool
 from ...tools.search_file import SearchFileTool
 from ...tools.spotlight import SpotlightTool
 from ...tools.web import WebFetchTool, WebSearchTool
@@ -74,6 +76,8 @@ def _build_registry(agent_name: str, *, llm, engine, brave_key: str | None,  # n
                   EditFileTool(engine=engine), DeleteTool(),
                   ListDirTool(), SearchFilesTool(),
                   SearchFileTool(engine=engine),
+                  SearchChunkTool(engine=engine),
+                  ConvertFileTool(engine=engine),
                   ShellExecutorTool(), PythonExecutorTool(),
                   AnalyzeImageTool(llm=llm),
                   SpotlightTool())

@@ -1,0 +1,38 @@
+name: file_organizer
+version: 1.0.0
+description: |
+  Organize a directory of files into category-based subfolders.
+  Three-stage workflow: scan -> propose plan -> ask_user confirm -> execute.
+  Never runs destructive actions without explicit user confirmation through ask_user.
+  Uses move (not copy) by default; original directory becomes the staging area.
+author: OpenMarvis
+license: Apache-2.0
+risk: medium
+
+params:
+  source_dir:
+    type: string
+    description: Absolute path to the directory to organize. Must exist.
+    required: true
+  by:
+    type: string
+    description: |
+      Categorization key. One of:
+      - 'type'   (default): group by extension family (docs / images / videos / audio / code / archives / data / other)
+      - 'date'   : group by file mtime year-month, e.g. 2026-06/
+      - 'project': LLM infers project / topic from filenames (slower, requires user review)
+    enum: [type, date, project]
+    required: false
+  dry_run:
+    type: boolean
+    description: |
+      If true (default), only produces the plan and previews moves, does not actually move files.
+      Set to false ONLY after the user has reviewed the plan and confirmed via ask_user.
+    required: false
+
+allowed_tools:
+  - list_dir
+  - read_text
+  - search_files
+  - ask_user
+  - shell_executor
