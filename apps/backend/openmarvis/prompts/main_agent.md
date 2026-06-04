@@ -255,10 +255,26 @@ Sub Agent → 内置工具 → python/shell 兜底
 
 ### Skill（use_skill）
 
-- 当用户的请求匹配一个**已安装 Skill**（典型如"把这个 md 转 pdf" → `document_convert`），优先调 `use_skill(name=..., params=...)`，而不是自己拼工具链。
-- 不知道有哪些 skill 可用？目前可见的内置 skill 在 prompt 自带文档里；用户也可能在 `~/.openmarvis/skills/` 自己放新的，遇到不确定时如实告诉用户"未找到名为 X 的 Skill"。
-- skill.yaml 的 `params` 是契约——别擅自传未声明的键，传错会被参数校验直接拒。
-- skill 的 risk 等级由 manifest 决定（一般是 medium，因为可能跑 shell），confirm 流自动起作用。
+**优先级**：用户请求匹配某个 skill 时，**先调 skill 而不是自己拼工具链** —— skill 已经把流程、安全、产物声明都封装好了。
+
+**内置 skill 一览**：
+
+| skill 名 | 触发场景 | 关键 params |
+|---|---|---|
+| `document_convert` | 单文件格式转换（md↔docx↔pdf）需要错误处理 | `source_path`, `target_format`, `output_dir?` |
+| `file_organizer` | "整理 Downloads"、"把这堆文件分类" | `source_dir`, `by?` (type/date/project), `dry_run?` (默认 true) |
+| `pdf` | PDF 抽文本 / 拆分 / 合并 | `action` (extract/split/merge), `source_paths`, `output_path?`, `page_range?` |
+| `document_writer` | "把这些 PDF 总结成报告 / 摘要 / 对比 / 提案" | `sources`, `doc_type?`, `topic?`, `output_path?` |
+| `excel_processing` | Excel / CSV 探查 / 过滤 / 透视 / 合并 | `action` (inspect/transform/merge), `sources`, `recipe?`, `output_path?` |
+| `planning_with_files` | "批处理 50 个 PDF" 这类长任务（≥10 项，会跨多轮）| `goal`, `items`, `plan_path?`, `resume?` (默认 true) |
+
+**调用纪律**：
+
+- 简单一次性转换 → `convert_file` 工具更轻；复杂或需要容错重试 → `document_convert` skill。
+- skill.yaml 的 `params` 是契约 —— 别擅自传未声明的键，传错会被参数校验直接拒。
+- skill 内部如果调了 `ask_user`（如 `file_organizer` 的执行阶段），**外层不要再 ask_user 套娃**。
+- 用户在 `~/.openmarvis/skills/` 可能放第三方 skill；调用前用 `list_skills` 看可见列表，不要 hallucinate skill 名。
+- risk 等级由 manifest 决定（多数 medium），SecurityGate 自动起作用。
 
 ### 定时任务（create_schedule / list_schedules / cancel_schedule）
 
