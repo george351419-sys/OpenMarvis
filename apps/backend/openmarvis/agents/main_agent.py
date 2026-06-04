@@ -106,9 +106,10 @@ def build_main_agent(
         reg.register(t)
 
     if skill_registry is not None:
-        from ..skill.tools_skill import UseSkillTool
+        from ..skill.tools_skill import ListSkillsTool, UseSkillTool
         reg.register(UseSkillTool(skill_registry=skill_registry,
                                     parent_tool_registry=reg, llm=llm))
+        reg.register(ListSkillsTool(skill_registry=skill_registry))
 
     raw_prompt = load_prompt("main_agent")
     rendered = raw_prompt.replace("{{ WORKSPACE_BLOCK }}", _render_workspace_block(workspace))
