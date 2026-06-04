@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 
-const BACKEND = process.env.BACKEND_URL ?? "http://127.0.0.1:8001";
+const BACKEND = process.env.BACKEND_URL ?? "http://127.0.0.1:8000";
 
 async function forward(req: NextRequest, params: { path: string[] }, method: string) {
   const target = `${BACKEND}/${params.path.join("/")}${req.nextUrl.search}`;

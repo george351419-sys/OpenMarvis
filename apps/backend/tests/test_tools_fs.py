@@ -50,6 +50,22 @@ async def test_write_then_read(ctx):
     assert "hello" in r.content
 
 
+async def test_write_accepts_path_alias(ctx):
+    # Regression: 部分模型（Hunyuan-turbos）会用 "path" / "filepath" 而不是
+    # "file_path"。args_model 应通过 validation_alias 接受这些别名，
+    # 避免空转 4 次都失败。
+    c, engine = ctx
+    target = c.workspace.output_dir / "alias.md"
+    # 用别名构造，model_validate 走 validation_alias 路径
+    args = WriteFileTool.args_model.model_validate(
+        {"path": str(target), "content": "from-alias"}
+    )
+    assert args.file_path == str(target)
+    r = await WriteFileTool(engine=engine).execute(args, c)
+    assert r.error is None
+    assert target.read_text() == "from-alias"
+
+
 async def test_write_records_audit(ctx):
     c, engine = ctx
     target = c.workspace.output_dir / "y.md"

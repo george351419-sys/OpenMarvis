@@ -44,6 +44,7 @@ interface ChatState {
   subAgentEnd: (id: string, status: string) => void;
   setAsk: (a: AskUserState | null) => void;
   finishTurn: () => void;
+  setError: (msg: string) => void;
   recordUser: (text: string) => void;
   reset: () => void;
 }
@@ -123,6 +124,13 @@ export const useChat = create<ChatState>((set) => ({
       const list = [...s.assistant];
       const cur = list[list.length - 1]; if (!cur) return {} as any;
       list[list.length - 1] = { ...cur, done: true };
+      return { assistant: list };
+    }),
+  setError: (msg) =>
+    set((s) => {
+      const list = [...s.assistant];
+      const cur = list[list.length - 1]; if (!cur) return {} as any;
+      list[list.length - 1] = { ...cur, error: msg };
       return { assistant: list };
     }),
   recordUser: (text) =>

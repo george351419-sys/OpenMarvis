@@ -44,7 +44,10 @@ export function ChatStream({ convId }: { convId: string }) {
             case "sub_agent_start": store.subAgentStart(data.agent_id, data.agent_name); break;
             case "sub_agent_end": store.subAgentEnd(data.agent_id, data.status); break;
             case "done": store.finishTurn(); break;
-            case "error": store.finishTurn(); break;
+            case "error":
+              store.setError(data.message || "未知错误");
+              store.finishTurn();
+              break;
           }
         },
         onClose: () => setBusy(false),

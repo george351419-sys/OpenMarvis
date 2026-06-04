@@ -1,12 +1,36 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
 
 from ..tools.base import Card, Tool, ToolContext, ToolResult
+
+# description（标题）禁止包含的时间字眼 —— 时间信息应只由 trigger_spec 描述。
+# 命中即拒，要求 LLM 重写标题。覆盖：中文相对/绝对/周期；英文 every/daily/weekly/at/in N min。
+_TIME_WORD_RE = re.compile(
+    r"每\s*[天日周月分时小]"
+    r"|每隔"
+    r"|今[天晚日]"
+    r"|明[天日]"
+    r"|后[天日]"
+    r"|分钟后|小时后|天后|周后|月后"
+    r"|\d+\s*(?:分|分钟|小时|秒|h|min|m|s)\s*后"
+    r"|\d{1,2}\s*[点时]\b"
+    r"|\d{1,2}:\d{2}"
+    r"|\d{4}-\d{1,2}-\d{1,2}"
+    r"|\b(?:every|daily|weekly|monthly|hourly|tomorrow|tonight|at\s+\d|in\s+\d+\s*(?:min|hour|day))\b",
+    re.IGNORECASE,
+)
+
+
+def _description_has_time_word(text: str) -> str | None:
+    """Return the matched time-word if `text` contains one, else None."""
+    m = _TIME_WORD_RE.search(text)
+    return m.group(0) if m else None
 
 
 class CreateScheduleArgs(BaseModel):
@@ -28,6 +52,11 @@ class CreateScheduleTool(Tool):
         mgr = ctx.user_settings.scheduler_manager
         if mgr is None:
             return ToolResult(error="scheduler_not_initialized")
+        if (bad := _description_has_time_word(args.description)) is not None:
+            return ToolResult(error=(
+                f"title_contains_time_word: '{bad}' — 标题（description）只写做什么，"
+                "不要含时间字。时间由 trigger_spec 描述。请重写后再调用。"
+            ))
         safe_instruction = ctx.security.credential_guard.mask(args.instruction)
         try:
             if args.trigger_type == "once":

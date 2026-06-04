@@ -1,11 +1,60 @@
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Any
 
 from litellm import acompletion
+from litellm.exceptions import (
+    APIConnectionError,
+    APIError,
+    InternalServerError,
+    RateLimitError,
+    ServiceUnavailableError,
+    Timeout,
+)
+
+logger = logging.getLogger(__name__)
+
+# 这些错误可重试：限流、上游 5xx、网络抖动。AuthenticationError / BadRequest
+# 故意不在内 — 这些重试无意义，会浪费时间还掩盖配置 bug。
+_RETRYABLE_EXC: tuple[type[Exception], ...] = (
+    RateLimitError,
+    InternalServerError,
+    ServiceUnavailableError,
+    APIConnectionError,
+    Timeout,
+    APIError,  # litellm 把上游未分类错误包装成这个
+)
+_RETRY_MAX = 3
+_RETRY_BASE_SECONDS = 2.0  # 指数退避：2s, 4s, 8s
+
+
+async def _acompletion_with_retries(**params: Any) -> Any:
+    """对 litellm.acompletion 套上限流重试 + 退避。
+
+    流式请求只能在 *建立连接* 这一步重试 —— 一旦开始流，部分 token 已发出去就
+    不能再重来了。所以本函数只把第一次 acompletion 调用纳入重试范围；调用方拿
+    到流后自己处理流中错误。
+    """
+    delay = _RETRY_BASE_SECONDS
+    last: Exception | None = None
+    for attempt in range(_RETRY_MAX + 1):
+        try:
+            return await acompletion(**params)
+        except _RETRYABLE_EXC as e:
+            last = e
+            if attempt >= _RETRY_MAX:
+                break
+            logger.warning("LLM retryable error (attempt %d/%d): %s; sleep %.1fs",
+                           attempt + 1, _RETRY_MAX, type(e).__name__, delay)
+            await asyncio.sleep(delay)
+            delay *= 2
+    assert last is not None
+    raise last
 
 _FINISH_REASON_MAP = {"stop": "end_turn", "tool_calls": "tool_use", "length": "max_tokens"}
 
@@ -50,11 +99,17 @@ def _resolve_finish(
 
 class LiteLLMClient:
     def __init__(self, *, model: str, api_key: str | None = None,
-                 max_tokens: int = 4096, temperature: float = 0.2):
+                 max_tokens: int = 4096, temperature: float = 0.2,
+                 vision_model: str | None = None,
+                 api_base: str | None = None):
         self.model = model
         self.api_key = api_key
         self.max_tokens = max_tokens
         self.temperature = temperature
+        # 若主模型不支持视觉（如 DeepSeek），单独走 vision_model。None 时复用 model。
+        self.vision_model = vision_model or model
+        # OpenAI 兼容端点（如混元），传给 litellm acompletion。
+        self.api_base = api_base
 
     async def stream_chat(self, *, messages: list[dict], tools: list[dict],
                           ) -> AsyncIterator[StreamChunk]:
@@ -69,10 +124,12 @@ class LiteLLMClient:
             params["tools"] = [{"type": "function", "function": t} for t in tools]
         if self.api_key:
             params["api_key"] = self.api_key
+        if self.api_base:
+            params["api_base"] = self.api_base
 
         accumulated_tool_calls: dict[int, dict] = {}
 
-        stream = await acompletion(**params)
+        stream = await _acompletion_with_retries(**params)
         async for chunk in stream:
             choice = chunk["choices"][0]
             delta = choice.get("delta", {}) or {}
@@ -83,13 +140,12 @@ class LiteLLMClient:
             yield StreamChunk(text=text, thinking=thinking, tool_calls=tcs, stop_reason=stop_reason)
 
     async def complete_with_image(self, *, prompt: str, image_path: str) -> str:
-        """一次性视觉请求；返回模型纯文本响应。"""
+        """一次性视觉请求；返回模型纯文本响应。走 vision_model。"""
         import base64
         from pathlib import Path
         b64 = base64.b64encode(Path(image_path).read_bytes()).decode("ascii")
-        import litellm
-        resp = await litellm.acompletion(
-            model=self.model,
+        resp = await _acompletion_with_retries(
+            model=self.vision_model,
             max_tokens=512,
             messages=[{
                 "role": "user",

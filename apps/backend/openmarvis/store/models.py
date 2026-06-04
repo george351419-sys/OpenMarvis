@@ -30,6 +30,9 @@ class MemoryEntry(SQLModel, table=True):
     conv_id: str = Field(index=True)
     content: str = ""
     created_at: int = 0
+    # "tool_result"（默认，按 conv 隔离的大段产物缓存）
+    # | "user_pref"（跨会话长期偏好，conv_id 固定 "_global"）
+    kind: str = Field(default="tool_result", index=True)
 
 
 class SubAgentRecord(SQLModel, table=True):

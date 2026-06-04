@@ -1,9 +1,15 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+# 在任何 config / litellm 读 env 之前加载 apps/backend/.env（若存在）。
+# override=False：已有的 shell 环境变量优先，CI 不会被覆盖。
+load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=False)
 
 from .api import (
     chat_router,

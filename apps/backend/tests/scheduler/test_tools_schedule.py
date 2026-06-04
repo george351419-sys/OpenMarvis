@@ -96,6 +96,49 @@ async def test_cancel_schedule_ok():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("bad_desc", [
+    "每天 9 点晨会",
+    "明天备份",
+    "30 分钟后提醒",
+    "9:00 喝水",
+    "Every day backup",
+    "2026-06-10 备份",
+])
+async def test_create_schedule_rejects_time_word_in_description(bad_desc: str):
+    mgr = MagicMock()
+    tool = CreateScheduleTool()
+    args = tool.args_model(trigger_type="once",
+                            trigger_spec="2099-01-01T00:00:00+00:00",
+                            instruction="x", description=bad_desc,
+                            origin_conv_id="c")
+    res = await tool.execute(args, _ctx(mgr))
+    assert res.error is not None
+    assert "title_contains_time_word" in res.error
+    # 真正没调到 manager —— 校验在 manager 之前
+    mgr.add_once.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("clean_desc", [
+    "晨会提醒",
+    "备份重要文档",
+    "alert important",
+    "",  # 允许空 description
+])
+async def test_create_schedule_accepts_clean_description(clean_desc: str):
+    mgr = MagicMock()
+    mgr.add_once.return_value = "sch_ok"
+    tool = CreateScheduleTool()
+    args = tool.args_model(trigger_type="once",
+                            trigger_spec="2099-01-01T00:00:00+00:00",
+                            instruction="x", description=clean_desc,
+                            origin_conv_id="c")
+    res = await tool.execute(args, _ctx(mgr))
+    assert res.error is None
+    mgr.add_once.assert_called_once()
+
+
+@pytest.mark.asyncio
 async def test_cancel_returns_error_when_missing():
     mgr = MagicMock()
     mgr.cancel.return_value = False

@@ -6,7 +6,7 @@ import shutil
 import time
 from pathlib import Path
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 from ..store.audit import record_write
 from .base import Card, Tool, ToolContext, ToolResult
@@ -14,8 +14,17 @@ from .base import Card, Tool, ToolContext, ToolResult
 # ---------- read_text ----------
 
 
+# 部分 LLM（如 Hunyuan-turbos）会把 file_path 写成 path / filepath。这里用
+# validation_alias 让 args_model 容忍这些别名；但 model_json_schema() 仍然只
+# 暴露 file_path 给 LLM，避免主动引导。populate_by_name 才能让正式名通过。
+_PATH_ALIASES = AliasChoices("file_path", "path", "filepath")
+_LENIENT = ConfigDict(populate_by_name=True)
+
+
 class ReadTextArgs(BaseModel):
-    file_path: str = Field(description="用于读取文件的绝对路径")
+    model_config = _LENIENT
+    file_path: str = Field(validation_alias=_PATH_ALIASES,
+                            description="用于读取文件的绝对路径")
     offset: int = Field(default=0, description="起始行号（0-based）")
     limit: int = Field(default=-1, description="读取的最大行数，-1 表示默认上限")
 
@@ -50,7 +59,9 @@ class ReadTextTool(Tool):
 
 
 class WriteFileArgs(BaseModel):
-    file_path: str = Field(description="要写入的文件路径（绝对路径）")
+    model_config = _LENIENT
+    file_path: str = Field(validation_alias=_PATH_ALIASES,
+                            description="要写入的文件路径（绝对路径）")
     content: str = Field(description="要写入的文本内容")
 
 
@@ -91,7 +102,8 @@ class WriteFileTool(Tool):
 
 
 class EditFileArgs(BaseModel):
-    file_path: str
+    model_config = _LENIENT
+    file_path: str = Field(validation_alias=_PATH_ALIASES)
     old_str: str
     new_str: str
     replace_all: bool = False

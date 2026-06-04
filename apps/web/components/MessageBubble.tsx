@@ -37,7 +37,12 @@ export function MessageBubble(props: Props) {
           }
           return <Renderer key={i} body={c.payload} />;
         })}
-        {turn.error && <div className="text-red-600 text-sm mt-2">错误：{turn.error}</div>}
+        {turn.error && (
+          <div className="mt-2 border border-red-200 bg-red-50 rounded px-3 py-2
+                            text-sm text-red-700 whitespace-pre-wrap break-all">
+            ⚠️ 错误：{turn.error}
+          </div>
+        )}
       </div>
     </div>
   );

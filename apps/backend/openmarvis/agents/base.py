@@ -65,11 +65,25 @@ class AgentBase:
     async def _emit(self, event: str, data: dict) -> None:
         await self.sink.emit(event, data)
 
+    _EXECUTOR_TOOLS = ("python_executor", "shell_executor")
+    _SUB_AGENT_HINT = {
+        "python_executor": "文件/数据处理类任务建议派 file-agent；系统操作类派 computer-agent",
+        "shell_executor": "文件类派 file-agent；系统操作类派 computer-agent",
+    }
+
+    async def _emit_executor_guard(self, tool_name: str) -> None:
+        if self.name != "main" or tool_name not in self._EXECUTOR_TOOLS:
+            return
+        await self._emit("warning", {
+            "message": f"Main 直接调用 {tool_name}（越级）。{self._SUB_AGENT_HINT[tool_name]}",
+        })
+
     async def _execute_tool(self, tc: dict) -> dict:
         tool = self.tools.get(tc["name"])
         if tool is None:
             return {"role": "tool", "tool_call_id": tc["id"],
                     "content": f"未知工具: {tc['name']}"}
+        await self._emit_executor_guard(tc["name"])
         await self._emit("tool_call_start",
                          {"call_id": tc["id"], "name": tc["name"], "args": tc["args"]})
         try:
@@ -97,6 +111,22 @@ class AgentBase:
             content = self.memory.summarize_preview(content, 400) + f"\n\n[memory_id: {mid}]"
         return {"role": "tool", "tool_call_id": tc["id"], "content": content}
 
+    async def _resolve_user_pref_block(self) -> str:
+        """Pull all kind='user_pref' MemoryEntries and format for system prompt injection."""
+        if self.memory is None:
+            return ""
+        rules = await self.memory.fetch_user_prefs(limit=50)
+        if not rules:
+            return ""
+        body = "\n".join(f"- [{r.id}] {r.content}" for r in rules)
+        return (
+            "\n\n<user_preference_rules>\n"
+            "以下是用户在历次会话中沉淀的长期偏好规则；除非用户当下明确要求例外，"
+            "全部遵守。删除某条用 `forget_user_preference(pref_id=...)`。\n"
+            f"{body}\n"
+            "</user_preference_rules>"
+        )
+
     async def _build_initial_messages(self, user_message: str, memory_ids: list[str]) -> list[dict]:
         background = ""
         if memory_ids and self.memory is not None:
@@ -105,10 +135,21 @@ class AgentBase:
                 background = "\n\n## 背景信息\n" + "\n\n".join(
                     f"### [{r.id}]\n{r.content}" for r in records
                 )
+        prefs = await self._resolve_user_pref_block()
         return [
-            {"role": "system", "content": self.system_prompt + background},
+            {"role": "system", "content": self.system_prompt + prefs + background},
             {"role": "user", "content": user_message},
         ]
+
+    async def _resolve_memory_background(self, memory_ids: list[str]) -> str:
+        if not memory_ids or self.memory is None:
+            return ""
+        records = await self.memory.fetch(memory_ids, conv_id=self.conv_id)
+        if not records:
+            return ""
+        return "\n\n## 背景信息\n" + "\n\n".join(
+            f"### [{r.id}]\n{r.content}" for r in records
+        )
 
     async def _stream_one_turn(self) -> tuple[list[str], list[dict], str | None]:
         """Stream a single LLM turn; return (text_chunks, tool_calls, stop_reason)."""
@@ -130,7 +171,14 @@ class AgentBase:
         return current_text, current_tool_calls, stop_reason
 
     async def run(self, *, user_message: str, memory_ids: list[str]) -> AgentResult:
-        self.message_history = await self._build_initial_messages(user_message, memory_ids)
+        if self.message_history:
+            # 续接：保留 inherit_agent_id 注入的历史，只追加新 user 轮次。
+            bg = await self._resolve_memory_background(memory_ids)
+            self.message_history.append(
+                {"role": "user", "content": user_message + bg}
+            )
+        else:
+            self.message_history = await self._build_initial_messages(user_message, memory_ids)
         final_text_chunks: list[str] = []
         for _iteration in range(self.max_iterations):
             current_text, current_tool_calls, stop_reason = await self._stream_one_turn()

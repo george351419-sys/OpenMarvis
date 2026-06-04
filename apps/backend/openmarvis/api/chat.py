@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import time
 from collections.abc import AsyncIterator
 
@@ -32,6 +33,18 @@ class ChatRequest(BaseModel):
     attachments: list[str] = []
 
 
+def _resolve_llm_api_key(provider_model: str) -> str | None:
+    """根据 provider_model 前缀选择对应 env 中的 key。
+
+    走 openai/ 兼容端点（如混元）时优先 HUNYUAN_API_KEY，避免和真正的
+    OPENAI_API_KEY 冲突。其它前缀（deepseek/、claude/）返回 None，让 litellm
+    自己读 DEEPSEEK_API_KEY / ANTHROPIC_API_KEY。
+    """
+    if provider_model.startswith("openai/"):
+        return os.getenv("HUNYUAN_API_KEY") or os.getenv("OPENAI_API_KEY")
+    return None
+
+
 def _wrap_user_message(message: str, attachments: list[str]) -> str:
     if not attachments:
         return message
@@ -58,8 +71,11 @@ async def chat(req: ChatRequest, request: Request) -> EventSourceResponse:
         s.commit()
 
     llm = LiteLLMClient(model=settings.llm.provider_model,
+                        api_key=_resolve_llm_api_key(settings.llm.provider_model),
                         max_tokens=settings.llm.max_tokens,
-                        temperature=settings.llm.temperature)
+                        temperature=settings.llm.temperature,
+                        vision_model=settings.llm.vision_model,
+                        api_base=settings.llm.api_base)
 
     ask_registry = get_ask_registry(req.conv_id)
     agent = build_main_agent(
@@ -134,8 +150,11 @@ async def _execute_scheduled_chat(virtual_conv_id: str, instruction: str,
     security = SecurityGate(workspace=workspace,
                              extra_blocklist=settings.security.extra_path_blocklist)
     llm = LiteLLMClient(model=settings.llm.provider_model,
+                         api_key=_resolve_llm_api_key(settings.llm.provider_model),
                          max_tokens=settings.llm.max_tokens,
-                         temperature=settings.llm.temperature)
+                         temperature=settings.llm.temperature,
+                         vision_model=settings.llm.vision_model,
+                         api_base=settings.llm.api_base)
 
     agent = build_main_agent(
         conv_id=virtual_conv_id, llm=llm, engine=engine,

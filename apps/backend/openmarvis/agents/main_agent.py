@@ -23,6 +23,7 @@ from ..tools.image import AnalyzeImageTool
 from ..tools.present import PresentResultTool
 from ..tools.registry import ToolRegistry
 from ..tools.spotlight import SpotlightTool
+from ..tools.user_pref import ForgetUserPreferenceTool, SaveUserPreferenceTool
 from ..tools.web import WebFetchTool, WebSearchTool
 from ..workspace.manager import Workspace
 from .base import AgentBase
@@ -79,6 +80,8 @@ def build_main_agent(
         DispatchTaskTool(factory=factory, sub_store=sub_store),
         PresentResultTool(sub_store=sub_store),
         SpotlightTool(),
+        SaveUserPreferenceTool(),
+        ForgetUserPreferenceTool(),
     )
     for t in main_tools:
         reg.register(t)

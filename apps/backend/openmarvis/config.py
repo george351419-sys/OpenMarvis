@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -16,7 +17,21 @@ class SecuritySettings(BaseModel):
 
 
 class LLMSettings(BaseModel):
-    provider_model: str = "claude-opus-4-7"
+    # 主对话/工具调用模型。LiteLLM 模型名 (provider/model)：
+    #   openai/hunyuan-turbos-latest  — 腾讯混元（走 OpenAI 兼容端点，需配 api_base）
+    #   deepseek/deepseek-chat        — DeepSeek V3，便宜、支持 function calling
+    #   deepseek/deepseek-reasoner    — DeepSeek R1，推理强但更贵
+    #   claude-opus-4-7 / sonnet-4-6  — Anthropic，质量好但贵
+    provider_model: str = "openai/hunyuan-turbos-latest"
+    # OpenAI 兼容端点的 base URL；非 OpenAI 兼容模型（deepseek/anthropic）留 None。
+    # 混元: https://api.hunyuan.cloud.tencent.com/v1
+    api_base: str | None = "https://api.hunyuan.cloud.tencent.com/v1"
+    # 视觉/多模态模型 (analyze_image / vision_click / vision_type 使用)。
+    # 主模型不支持视觉（DeepSeek/Hunyuan-turbos）时单独配一个：
+    #   zhipu/glm-4v-flash            — 智谱，免费
+    #   dashscope/qwen-vl-plus        — 阿里千问，极便宜
+    #   claude-opus-4-7               — 回退到 Claude（贵）
+    vision_model: str = "zhipu/glm-4v-flash"
     max_tokens: int = 4096
     temperature: float = 0.2
 
@@ -33,6 +48,7 @@ class Settings(BaseSettings):
         env_prefix="OPENMARVIS_",
         env_nested_delimiter="__",
         extra="ignore",
+        arbitrary_types_allowed=True,
     )
     host: str = "127.0.0.1"
     port: int = 8001
@@ -41,6 +57,10 @@ class Settings(BaseSettings):
     llm: LLMSettings = Field(default_factory=LLMSettings)
     workspace: WorkspaceSettings = Field(default_factory=WorkspaceSettings)
     browser: BrowserSettings = Field(default_factory=BrowserSettings)
+    # Runtime managers attached by app lifespan / build_main_agent — not loaded
+    # from env. Declared here so pydantic's strict __setattr__ accepts them.
+    scheduler_manager: Any = None
+    skill_registry: Any = None
 
 
 _settings: Settings | None = None
