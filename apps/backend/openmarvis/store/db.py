@@ -39,3 +39,6 @@ def _ensure_additive_columns(engine) -> None:
 def init_db(engine) -> None:
     SQLModel.metadata.create_all(engine)
     _ensure_additive_columns(engine)
+    # FTS5 文件索引（独立于 SQLModel，因为 FTS 虚拟表 SQLModel 不支持）
+    from .file_index import init_file_index
+    init_file_index(engine)

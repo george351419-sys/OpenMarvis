@@ -21,7 +21,9 @@ from ..tools.fs import (
 )
 from ..tools.image import AnalyzeImageTool
 from ..tools.present import PresentResultTool
+from ..tools.read_file import ReadFileTool
 from ..tools.registry import ToolRegistry
+from ..tools.search_file import SearchFileTool
 from ..tools.spotlight import SpotlightTool
 from ..tools.user_pref import ForgetUserPreferenceTool, SaveUserPreferenceTool
 from ..tools.web import WebFetchTool, WebSearchTool
@@ -66,6 +68,7 @@ def build_main_agent(
     reg = ToolRegistry()
     main_tools: tuple[Tool, ...] = (
         ReadTextTool(),
+        ReadFileTool(),
         WriteFileTool(engine=engine),
         EditFileTool(engine=engine),
         DeleteTool(),
@@ -80,6 +83,7 @@ def build_main_agent(
         DispatchTaskTool(factory=factory, sub_store=sub_store),
         PresentResultTool(sub_store=sub_store),
         SpotlightTool(),
+        SearchFileTool(engine=engine),
         SaveUserPreferenceTool(),
         ForgetUserPreferenceTool(),
     )

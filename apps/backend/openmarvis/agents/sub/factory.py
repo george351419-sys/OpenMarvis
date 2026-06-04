@@ -54,7 +54,9 @@ from ...tools.fs import (
     WriteFileTool,
 )
 from ...tools.image import AnalyzeImageTool
+from ...tools.read_file import ReadFileTool
 from ...tools.registry import ToolRegistry
+from ...tools.search_file import SearchFileTool
 from ...tools.spotlight import SpotlightTool
 from ...tools.web import WebFetchTool, WebSearchTool
 from ...workspace.manager import Workspace
@@ -67,9 +69,11 @@ def _build_registry(agent_name: str, *, llm, engine, brave_key: str | None,  # n
     reg = ToolRegistry()
     tools: tuple[Tool, ...]
     if agent_name == "file-agent":
-        tools = (ReadTextTool(), WriteFileTool(engine=engine),
+        tools = (ReadTextTool(), ReadFileTool(),
+                  WriteFileTool(engine=engine),
                   EditFileTool(engine=engine), DeleteTool(),
                   ListDirTool(), SearchFilesTool(),
+                  SearchFileTool(engine=engine),
                   ShellExecutorTool(), PythonExecutorTool(),
                   AnalyzeImageTool(llm=llm),
                   SpotlightTool())
