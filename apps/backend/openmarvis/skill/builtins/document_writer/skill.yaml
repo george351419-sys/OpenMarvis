@@ -1,0 +1,53 @@
+name: document_writer
+version: 1.0.0
+description: |
+  Synthesize one or more source documents into a structured output document
+  (report / summary / comparison / proposal). Reads sources via read_file
+  (PDF/DOCX/PPTX/XLSX/CSV/MD/TXT), writes Markdown by default, optionally
+  converts to docx/pdf via convert_file.
+author: OpenMarvis
+license: Apache-2.0
+risk: medium
+
+params:
+  sources:
+    type: array
+    description: |
+      Absolute paths of source documents. At least one. read_file handles
+      PDF / DOCX / PPTX / XLSX / CSV / MD / TXT / JSON / YAML.
+    required: true
+
+  output_path:
+    type: string
+    description: |
+      Absolute path of the final output document.
+      Extension determines format: .md (default), .docx, .pdf, .html.
+      Non-.md extensions trigger convert_file after the .md is written.
+      If omitted, defaults to <workspace>/output/<doc_type>_<timestamp>.md.
+    required: false
+
+  doc_type:
+    type: string
+    description: |
+      Document genre, influences structure and tone:
+      - 'report'     : intro / findings / details / recommendation (default)
+      - 'summary'    : key points + brief context, short
+      - 'comparison' : side-by-side tables + verdict
+      - 'proposal'   : problem / solution / plan / risks
+    enum: [report, summary, comparison, proposal]
+    required: false
+
+  topic:
+    type: string
+    description: |
+      Optional. A one-sentence focus statement. If sources are heterogeneous,
+      the topic narrows the synthesis (e.g., 'extract only quarterly revenue
+      figures from these earnings reports').
+    required: false
+
+allowed_tools:
+  - read_file
+  - read_text
+  - write_file
+  - convert_file
+  - list_dir

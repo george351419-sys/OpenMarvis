@@ -1,0 +1,58 @@
+name: excel_processing
+version: 1.0.0
+description: |
+  Read, transform, and write Excel / CSV files using pandas. Covers:
+  - inspect: peek at sheets / columns / row count without loading everything
+  - filter / select / sort / aggregate
+  - join multiple workbooks on shared columns
+  - pivot / groupby summary
+  - write back to xlsx / csv with formatting preserved when possible
+  Pure-Python via pandas + openpyxl; no system commands required.
+author: OpenMarvis
+license: Apache-2.0
+risk: medium
+
+params:
+  action:
+    type: string
+    description: |
+      What to do:
+      - 'inspect'  : list sheets, columns, dtypes, row counts. Does not write
+                     any file. Use this first if you don't know the schema.
+      - 'transform': run a single pandas pipeline (filter / select / sort /
+                     groupby / pivot) and write the result. Requires `recipe`.
+      - 'merge'    : join multiple source files on a shared key column.
+                     Requires sources >= 2 and recipe with on/how.
+    enum: [inspect, transform, merge]
+    required: true
+
+  sources:
+    type: array
+    description: |
+      Absolute paths to source .xlsx / .xlsm / .csv files. For 'merge'
+      at least 2 are required; for 'inspect' / 'transform' typically 1.
+    required: true
+
+  output_path:
+    type: string
+    description: |
+      Absolute path of the output file (.xlsx or .csv). Required for
+      'transform' / 'merge'. Ignored for 'inspect'.
+    required: false
+
+  recipe:
+    type: object
+    description: |
+      Operation parameters. Schema varies by action:
+        transform: {sheet?: str, filter?: {col: value | list}, select?: [cols],
+                    sort?: [{col, ascending}], groupby?: [cols], agg?: {col: fn}}
+        merge:     {on: str | [str], how: 'inner' | 'left' | 'right' | 'outer',
+                    sheet?: str}
+      Pass as JSON object. Action 'inspect' ignores this.
+    required: false
+
+allowed_tools:
+  - read_text
+  - write_file
+  - list_dir
+  - python_executor

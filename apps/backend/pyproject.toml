@@ -35,6 +35,8 @@ dependencies = [
   "python-docx>=1.1",
   "python-pptx>=1.0",
   "openpyxl>=3.1",
+  # excel_processing skill 的后端（python_executor 暴露给 LLM 用）
+  "pandas>=2.0",
 ]
 
 [project.optional-dependencies]

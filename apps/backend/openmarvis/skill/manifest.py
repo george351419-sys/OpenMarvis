@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 
 class SkillParam(BaseModel):
-    type: str = Field(description="json-schema-style: string / integer / number / boolean / array")
+    type: str = Field(description="json-schema-style: string / integer / number / boolean / array / object")
     description: str = ""
     required: bool = False
     enum: list[str] | None = None
