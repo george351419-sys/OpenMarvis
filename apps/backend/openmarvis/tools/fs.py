@@ -174,9 +174,13 @@ class DeleteArgs(BaseModel):
 
 class DeleteTool(Tool):
     name = "delete"
-    description = "删除文件/文件夹（移至 .trash 回收站，7 天后硬删）。"
+    description = (
+        "删除文件/文件夹（移至 .trash 回收站，7 天后硬删）。"
+        "高风险工具：会被 SecurityGate 标为 confirm，调用方必须先调 ask_user 取得"
+        "用户授权后再调本工具——目前前端没有原生的批量勾选确认 UI。"
+    )
     args_model = DeleteArgs
-    risk_level = "high"  # 但 UI 自带勾选确认 → 工具层不再 ask_user
+    risk_level = "high"
     available_to = ("main", "file-agent")
 
     async def execute(self, args: DeleteArgs, ctx: ToolContext) -> ToolResult:
@@ -187,6 +191,13 @@ class DeleteTool(Tool):
         )
         if decision.action == "block":
             return ToolResult(error=f"risk_blocked: {decision.reason}")
+        if decision.action == "confirm":
+            # high risk → confirm；调用方须先 ask_user 拿到授权再重发。直接拒，
+            # 避免和 prompt 里以前那条不准确的"自带 UI 豁免"互相矛盾导致裸跑。
+            return ToolResult(
+                error=(f"requires_confirm: {decision.reason} —— "
+                       "delete 是高风险，请先调 ask_user 取得用户确认后再重试。")
+            )
         trash_base = Path("~/.openmarvis/.trash").expanduser()
         trash_dir = trash_base / f"{ctx.conv_id}_{int(time.time())}"
         trash_dir.mkdir(parents=True, exist_ok=True)

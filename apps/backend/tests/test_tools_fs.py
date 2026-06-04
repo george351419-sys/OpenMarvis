@@ -151,3 +151,19 @@ async def test_delete_moves_to_trash(ctx):
     target.write_text("bye")
     await DeleteTool().execute(DeleteTool.args_model(file_paths=[str(target)]), c)
     assert not target.exists()
+
+
+async def test_delete_returns_requires_confirm_on_external_path(ctx, tmp_path):
+    # B8/A11 回归：delete 是 high risk，对 workspace 外路径 SecurityGate 返
+    # confirm。之前 DeleteTool 缺 confirm 分支会**裸跑**——必须返
+    # requires_confirm，由 LLM 走 ask_user 拿到用户授权再重试。
+    c, _ = ctx
+    outside = tmp_path / "external.txt"
+    outside.write_text("not in workspace")
+    r = await DeleteTool().execute(
+        DeleteTool.args_model(file_paths=[str(outside)]), c,
+    )
+    assert r.error is not None
+    assert "requires_confirm" in r.error
+    # 没真删
+    assert outside.exists()
