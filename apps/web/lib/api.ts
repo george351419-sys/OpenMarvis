@@ -57,6 +57,23 @@ export const api = {
     fetchJson<ConversationDTO>("/conversations", { method: "POST", body: JSON.stringify({ title }) }),
   deleteConversation: (id: string) =>
     fetchJson<{ ok: boolean }>(`/conversations/${id}`, { method: "DELETE" }),
+  purgeConversation: (id: string) =>
+    fetchJson<{ ok: boolean; purged: Record<string, number> }>(
+      `/conversations/${id}/purge`, { method: "POST" },
+    ),
+  cleanupConversations: (filter: {
+    empty_title?: boolean;
+    min_age_days?: number;
+    max_messages?: number;
+    include_archived?: boolean;
+    dry_run?: boolean;
+  }) =>
+    fetchJson<
+      { dry_run: true; would_purge: number; sample_ids: string[] }
+      | { dry_run: false; purged: number; by_table: Record<string, number> }
+    >("/conversations/cleanup", {
+      method: "POST", body: JSON.stringify(filter),
+    }),
   listMessages: (id: string) => fetchJson<MessageDTO[]>(`/conversations/${id}/messages`),
   upload: async (convId: string, file: File) => {
     const fd = new FormData(); fd.append("file", file);
