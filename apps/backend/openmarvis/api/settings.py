@@ -6,6 +6,8 @@ from pathlib import Path
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
+from ..config_persistence import get_config_path, save_config_to_yaml
+
 router = APIRouter(prefix="/settings", tags=["settings"])
 
 # provider-prefix → env-var-name 主要候选；用于"key 是否在环境变量里"探测
@@ -98,6 +100,7 @@ class SettingsPatch(BaseModel):
     llm: dict | None = None
     security: dict | None = None
     workspace: dict | None = None
+    persist: bool = True  # 默认持久化到文件
 
 
 @router.get("")
@@ -250,6 +253,58 @@ async def check_health(request: Request) -> dict:
     return health
 
 
+@router.post("/test-connection")
+async def test_api_connection(request: Request) -> dict:
+    """测试 API 连接是否真正可用（发起实际的 API 调用）。
+
+    返回 {status: "ok"|"error", provider: str, latency_ms: float|None, error: str|None}
+    """
+    s = request.app.state.om.settings
+    import time
+    from litellm import completion
+
+    result = {
+        "provider": s.llm.provider_model,
+        "status": "unknown",
+        "latency_ms": None,
+        "error": None,
+    }
+
+    try:
+        start = time.time()
+        # 发送一个最简单的测试请求
+        response = completion(
+            model=s.llm.provider_model,
+            messages=[{"role": "user", "content": "ping"}],
+            max_tokens=5,
+            api_base=s.llm.api_base,
+            timeout=10,
+        )
+        latency = (time.time() - start) * 1000
+
+        if response and response.choices:
+            result["status"] = "ok"
+            result["latency_ms"] = round(latency, 2)
+            result["response_preview"] = response.choices[0].message.content[:50]
+        else:
+            result["status"] = "error"
+            result["error"] = "Empty response from API"
+
+    except Exception as e:
+        result["status"] = "error"
+        result["error"] = str(e)
+        # 尝试提取更友好的错误信息
+        error_str = str(e).lower()
+        if "authentication" in error_str or "api key" in error_str:
+            result["error"] = "API Key 认证失败"
+        elif "timeout" in error_str:
+            result["error"] = "请求超时"
+        elif "connection" in error_str:
+            result["error"] = "无法连接到 API"
+
+    return result
+
+
 @router.put("")
 async def update_settings(patch: SettingsPatch, request: Request) -> dict:
     s = request.app.state.om.settings
@@ -261,4 +316,47 @@ async def update_settings(patch: SettingsPatch, request: Request) -> dict:
         for k, v in patch.security.items():
             if hasattr(s.security, k):
                 setattr(s.security, k, v)
+    if patch.workspace:
+        for k, v in patch.workspace.items():
+            if hasattr(s.workspace, k):
+                if k == "root":
+                    s.workspace.root = Path(v)
+                else:
+                    setattr(s.workspace, k, v)
+
+    # 持久化到 YAML 文件
+    if patch.persist:
+        try:
+            save_config_to_yaml(s)
+        except Exception as e:
+            # 记录错误但不阻止响应
+            import logging
+            logging.getLogger(__name__).error(f"Failed to persist config: {e}")
+
     return await get_settings(request)
+
+
+@router.get("/config-path")
+async def get_config_file_path() -> dict:
+    """返回当前配置文件的路径。"""
+    path = get_config_path()
+    return {
+        "path": str(path),
+        "exists": path.exists(),
+        "writable": path.parent.exists() and os.access(path.parent, os.W_OK),
+    }
+
+
+@router.post("/reload")
+async def reload_config(request: Request) -> dict:
+    """从配置文件重新加载配置。"""
+    from ..config_persistence import apply_yaml_config, load_config_from_yaml
+
+    s = request.app.state.om.settings
+    yaml_data = load_config_from_yaml()
+
+    if not yaml_data:
+        return {"ok": False, "message": "No config file found"}
+
+    apply_yaml_config(s, yaml_data)
+    return {"ok": True, "message": "Config reloaded", "data": await get_settings(request)}

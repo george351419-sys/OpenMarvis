@@ -22,6 +22,7 @@ from .api import (
     skills_router,
 )
 from .config import get_settings
+from .config_persistence import apply_yaml_config, load_config_from_yaml
 from .deps import build_app_state
 
 
@@ -45,6 +46,16 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     settings = get_settings()
+
+    # 尝试从 YAML 配置文件加载并应用配置
+    try:
+        yaml_config = load_config_from_yaml()
+        if yaml_config:
+            apply_yaml_config(settings, yaml_config)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Failed to load config from YAML: {e}")
+
     app = FastAPI(title="OpenMarvis", version="0.0.1", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,

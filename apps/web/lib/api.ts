@@ -86,6 +86,11 @@ export const api = {
       method: "POST", body: JSON.stringify({ conv_id, ask_id, choices }),
     }),
   getSettings: () => fetchJson<any>("/settings"),
+  getSettingsInfo: () => fetchJson<any>("/settings/info"),
+  getSettingsHealth: () => fetchJson<any>("/settings/health"),
+  getConfigPath: () => fetchJson<any>("/settings/config-path"),
+  reloadConfig: () => fetchJson<any>("/settings/reload", { method: "POST" }),
+  testApiConnection: () => fetchJson<any>("/settings/test-connection", { method: "POST" }),
   putSettings: (patch: any) =>
     fetchJson<any>("/settings", { method: "PUT", body: JSON.stringify(patch) }),
   listUnreadNotifications: (originConvId?: string) => {
