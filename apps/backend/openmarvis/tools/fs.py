@@ -205,7 +205,7 @@ class DeleteArgs(BaseModel):
 class DeleteTool(Tool):
     name = "delete"
     description = (
-        "删除文件/文件夹（移至 .trash 回收站，7 天后硬删）。"
+        "删除文件/文件夹（移至回收站）。"
         "高风险工具：调用后前端自动弹出文件勾选确认卡片，用户确认后执行删除。"
     )
     args_model = DeleteArgs

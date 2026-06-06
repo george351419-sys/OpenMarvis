@@ -19,7 +19,11 @@ class ShellExecutorArgs(BaseModel):
 
 class ShellExecutorTool(Tool):
     name = "shell_executor"
-    description = "执行系统 Shell 命令并返回结果。在会话 workspace 目录下执行。"
+    description = (
+        "执行系统 Shell 命令并返回结果。在会话 workspace 目录下执行。"
+        "⚠️ 最后手段：有专用 Sub Agent（file/computer/browser/search）或工具可完成时，"
+        "禁止越级直接调用此工具——应优先派 Sub Agent 或使用对应工具。"
+    )
     args_model = ShellExecutorArgs
     risk_level = "medium"
     available_to = ("main", "file-agent")
@@ -58,7 +62,11 @@ class PythonExecutorArgs(BaseModel):
 
 class PythonExecutorTool(Tool):
     name = "python_executor"
-    description = "执行 Python 代码或 .py 脚本，cwd=workspace。"
+    description = (
+        "执行 Python 代码或 .py 脚本，cwd=workspace。"
+        "⚠️ 最后手段：数值计算、数据处理、无专用通道的特殊逻辑才使用；"
+        "文件读写请用 read_text/write_file，系统查询请用 computer-agent。"
+    )
     args_model = PythonExecutorArgs
     risk_level = "medium"
     available_to = ("main", "file-agent", "search-agent")
