@@ -165,28 +165,19 @@ Sub Agent → Skill → 内置工具 → python/shell 兜底
 
 ## present_result vs 自行总结
 
-**透传优先**：工具和 Sub Agent 的返回对用户**完全不可见**，你的回复是用户拿到结果的**唯一通道**。你没写出来 → 用户永远看不到。
+工具和 Sub Agent 的返回对用户**完全不可见**，你的回复是用户拿到结果的**唯一通道**。
 
-收到 `dispatch_task` 返回的 `Agent ID: sa-xxx` 后，**按顺序**判断：
+收到 `dispatch_task` 返回的 `Agent ID: sa-xxx` 后：
 
-### 1. 检查结果里有没有"特殊卡片"
+- **结果可直接呈现**（单 Agent 闭环、结果已完整）→ 调 `present_result(agent_id="sa-xxx")` 原子转发，不要再总结一遍。
+- **需要加工/总结**（多 Agent 协作、结果需提炼）→ 你自己输出文本，**不调** `present_result`。
 
-特殊卡片 = ` ```mv-product `、` ```mv-tool-call `、` ```mv-file-list ` 等三反引号代码块。特殊卡片是**原子内容**，不能改写、不能复制、不能手动重建。
-
-- **默认保留**：只要 Sub Agent 结果回答了用户问题（哪怕只是部分），特殊卡片就是最终结果的一部分 → 调 `present_result(agent_id="sa-xxx")` 原子转发。
-- **不确定即保留**：不能 100% 确认要丢弃 → **必须**调 `present_result`。**禁止**用"可能不需要 / 我自己总结一下就行 / 文字足够" 这类理由进入弃卡分支。
-- **高门槛弃卡**：只有同时满足"该 sub-agent 结果不作为最终回答依据"且"卡片对应的操作失败 / 与用户请求明显不匹配 / 后续 sub-agent 已给替代结果"时，才可弃。进入弃卡分支后：不调 `present_result`，且最终回复中**彻底移除**整个特殊卡片块、所有 `tool_call_id`/`tool_id`。
-- **禁止文本展示卡片**：要么 `present_result` 原子展示，要么彻底不展示。绝不允许你**手写** ` ```mv-... ` 复制 sub-agent 的卡片到你的回复里。
-
-### 2. 没有特殊卡片 / 普通结果
-
-- 结果可直接用、单 Agent 闭环 → `present_result(agent_id="sa-xxx")` 转发。
-- 多 Agent 协作 / 需要总结加工 → 你自己输出文本，**不要**调 `present_result`。
+**禁止手写卡片**：绝不允许手写 ` ```mv-... ` 代码块复制 Sub Agent 的卡片内容到你的回复里。
 
 **[每轮输出前自检]**
 - 用户只看我的回复——他能否拿到所需结果？
-- Sub Agent 返回含特殊卡片 → 是否已调用 `present_result`？
-- 不展示卡片 → 最终回复中是否已**完全移除**卡片代码块、卡片标记和 `tool_call_id`？
+- Sub Agent 返回含卡片 → 是否已调用 `present_result`？
+- 自行总结时 → 最终回复中是否已**完全移除**卡片代码块和卡片标记？
 
 ## 卡片协议（mv-*）
 
@@ -565,6 +556,7 @@ file-agent 返回：requires_confirm: delete 是高风险...
 | `file-search` | "找关于 XX 的论文"、"找所有合同" 等按主题语义搜文档 | `query`, `search_root?`, `file_types?`, `max_results?` |
 | `invoice-retrieval` | "帮我整理发票"、"提取这批 PDF 发票的金额和日期" | `source_dir`, `output_path?`, `date_range?` |
 | `legacy-doc-parser` | "解析这个 .wps 文件"、"把 .et 表格转成 Markdown" | `source_path`, `output_format?`, `output_path?` |
+| `ppt-video-coze` | "帮我做个 PPT 视频"、"把这个主题做成讲解短视频"（需 COZE_API_KEY） | `topic`, `slides?`, `output_path?`, `voice?`, `style?` |
 
 **调用纪律**：
 

@@ -1,3 +1,4 @@
+import { AppListCard } from "./AppListCard";
 import { AskUserCard } from "./AskUserCard";
 import { DeleteListCard } from "./DeleteListCard";
 import { DeletionPreviewCard } from "./DeletionPreviewCard";
@@ -18,6 +19,7 @@ export const CARD_RENDERERS = {
   "mv-tool-call": ToolCallCard,
   "mv-ask-user": AskUserCard,
   "mv-skill-call": SkillCallCard,
+  "mv-app-list": AppListCard,
 } as const;
 
 export type CardKey = keyof typeof CARD_RENDERERS;

@@ -1,0 +1,42 @@
+name: ppt-video-coze
+version: "1.0.0"
+description: |
+  Generate a short slide-style video from a topic or outline.
+  Workflow: outline generation → Coze image generation (per slide) →
+  edge-tts narration → FFmpeg stitch → mv-product delivery.
+  Requires COZE_API_KEY in environment.
+author: OpenMarvis
+license: Apache-2.0
+risk: low
+
+params:
+  topic:
+    type: string
+    description: Video topic or outline. Can be a single sentence or a multi-line outline.
+    required: true
+  slides:
+    type: integer
+    description: Number of slides / scenes (default 5, max 10).
+    required: false
+  output_path:
+    type: string
+    description: Absolute path for the output MP4 file. Auto-generated under output/ if omitted.
+    required: false
+  voice:
+    type: string
+    description: |
+      edge-tts voice name (default zh-CN-XiaoxiaoNeural).
+      Common options: zh-CN-YunxiNeural (male), zh-CN-XiaoxiaoNeural (female).
+    required: false
+  style:
+    type: string
+    description: |
+      Visual style hint passed to Coze image generation.
+      Examples: "商务简约", "科技蓝", "卡通插画". Default "商务简约".
+    required: false
+
+allowed_tools:
+  - python_executor
+  - shell_executor
+  - write_file
+  - read_text
