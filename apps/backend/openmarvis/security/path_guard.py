@@ -15,13 +15,15 @@ USER_SENSITIVE_DIRS = [
     "~/.ssh", "~/.aws", "~/.kube", "~/.config/gh", "~/.gnupg",
 ]
 SENSITIVE_FILENAMES = [
-    ".env", ".env.*", "id_rsa*", "*.pem", "*.key",
+    ".env", ".env.*", "id_rsa*", "*_rsa", "*.pem", "*.key",
     "credentials", "credentials.*",
 ]
 MACOS_PROTECTED = [
     "/Applications",
     "/Library/LaunchDaemons", "/Library/LaunchAgents",
-    "~/Library/LaunchAgents",
+    "~/Library/LaunchAgents", "~/Library/LaunchDaemons",
+    "~/Library/Containers",
+    "/Volumes",
 ]
 
 

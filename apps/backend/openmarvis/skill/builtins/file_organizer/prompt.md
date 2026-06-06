@@ -60,26 +60,60 @@
 - 把"已演练"当作"已确认"。dry_run=false 时也必须再走一次 ask_user。
 - 用 `ask_user` 之外的方式假装得到了用户授权。
 
-### 阶段 4: 执行
+### 阶段 4: 蓝图校验（可选）
 
-只有 `dry_run` = false 且 ask_user 返回"全部执行"时才到这一步。
+如果提供了 `blueprint_hash` 参数：
+
+1. 将当前蓝图（阶段 2 生成的移动计划，序列化为 JSON 字符串）计算 SHA256：
+   ```
+   python_executor: import hashlib, json; print(hashlib.sha256(json.dumps(blueprint, sort_keys=True, ensure_ascii=False).encode()).hexdigest())
+   ```
+2. 与传入的 `blueprint_hash` 比对。
+3. **不一致时立即中止**，报告"蓝图签名不匹配，蓝图已被修改，请重新执行 dry_run 生成新蓝图"。
+4. 一致则继续。
+
+### 阶段 5: 执行
+
+只有 `dry_run` = false 且 ask_user 返回"全部执行"时才到这一步（蓝图校验通过后）。
+
+执行过程中维护 `moves_log`，每步记录 `{from, to, timestamp}` 以支持撤销。
 
 对每条移动：
 1. 用 `shell_executor` 执行 `mkdir -p <target_dir>`。
 2. 用 `shell_executor` 执行 `mv -n <source> <target>`（`-n` = 不覆盖已存在的）。
 3. 如果 `mv -n` 因目标已存在而跳过（stderr 非空 + exit 0），追加 `_dup` 后缀重试一次。
+4. 每步成功后追加到 moves_log（写入 `temp/file_organizer_moves_log.json`）。
 
 **安全约束**：
 - 一次执行**最多 200 个**文件；超过要分批，每批之间汇报进度。
 - 任意一步 mv 失败 → **立即停下**，报告"已成功 N 条，从 X 开始失败"，把已成功的清单给用户。**不要继续尝试**。
 - 严禁删除（`rm`）、覆盖（`mv` 不带 `-n`）、改名 `_dup` 之外的 trick。
 
-### 阶段 5: 回报
+### 撤销能力
+
+用户说**"撤销" / "回退" / "恢复"**时：
+
+1. 读取 `temp/file_organizer_moves_log.json`。
+2. 从**最后一条记录开始**反向遍历，执行 `mv <to> <from>` 还原每步。
+3. 每次撤销后更新 moves_log（删除对应条目）。
+4. 报告"已撤销 N 步，文件已还原到原位置"。
+
+### 空目录清理
+
+整理执行完成后（阶段 5 完成），自动扫描 source_dir 寻找**空子目录**：
+
+1. 用 `shell_executor` 执行 `find <source_dir> -maxdepth 2 -type d -empty`。
+2. 生成 cleanup_candidates 列表，展示给用户。
+3. 如果用户确认 → 调用 `ask_user(title="删除空目录？", ...)` 列出候选，用户确认后 `shell_executor` 执行 `rmdir`（非递归删除，只删空目录）。
+4. 如果用户不确认 → 保留，不做任何操作。
+
+### 阶段 6: 回报
 
 回复包含：
 - 总数 / 成功数 / 跳过数
 - 用 `mv-file-list` 卡片列出**目标位置**最多 20 条作为预览
-- 提醒用户："如果发现某些归错了，可以告诉我具体文件，我移回原位"（**不要**主动加 undo —— 用户没要求）
+- 若有空目录候选 → 展示清单并询问是否清理
+- 提醒用户："如果发现某些归错了，可以说'撤销'让我还原"
 
 ## 失败处理
 

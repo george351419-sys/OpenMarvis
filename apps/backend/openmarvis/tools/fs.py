@@ -4,6 +4,7 @@ import fnmatch
 import json
 import os
 import shutil
+import subprocess
 import time
 from pathlib import Path
 
@@ -255,22 +256,41 @@ class DeleteTool(Tool):
         return await self._do_delete(confirmed, ctx)
 
     async def _do_delete(self, file_paths: list[str], ctx: ToolContext) -> ToolResult:
-        trash_base = Path("~/.openmarvis/.trash").expanduser()
-        trash_dir = trash_base / f"{ctx.conv_id}_{int(time.time())}"
-        trash_dir.mkdir(parents=True, exist_ok=True)
         deleted: list[Path] = []
         for raw in file_paths:
             p = Path(raw).expanduser()
             if not p.exists():
                 continue
-            target = trash_dir / p.name
-            shutil.move(str(p), str(target))
-            deleted.append(p)
+            moved = self._move_to_trash(p, ctx)
+            if moved:
+                deleted.append(p)
         body = "\n".join(f"[{p.name}](<{p}>)" for p in deleted)
         return ToolResult(
             content=f"已删除 {len(deleted)} 项",
             cards=[Card(type="mv-delete-list", payload=body)],
         )
+
+    @staticmethod
+    def _move_to_trash(p: Path, ctx) -> bool:
+        """移至 macOS 系统回收站；失败则降级到 .openmarvis/.trash。"""
+        try:
+            subprocess.run(
+                ["osascript", "-e",
+                 f'tell application "Finder" to delete POSIX file "{p.resolve()}"'],
+                check=True, capture_output=True, timeout=10,
+            )
+            return True
+        except Exception:
+            pass
+        # fallback: .openmarvis/.trash
+        try:
+            trash_dir = (Path("~/.openmarvis/.trash").expanduser()
+                         / f"{ctx.conv_id}_{int(time.time())}")
+            trash_dir.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(p), str(trash_dir / p.name))
+            return True
+        except Exception:
+            return False
 
 
 # ---------- list_dir ----------

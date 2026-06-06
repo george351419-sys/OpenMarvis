@@ -1,0 +1,30 @@
+name: legacy-doc-parser
+version: "1.0.0"
+description: |
+  解析 WPS 私有格式文件（.wps / .et / .dps），提取文本内容并转换为 Markdown 或纯文本。
+  优先使用 LibreOffice 转换，不可用时降级到二进制分析提取。
+author: OpenMarvis
+license: Apache-2.0
+risk: medium
+
+params:
+  source_path:
+    type: string
+    description: "WPS 格式文件的绝对路径（.wps / .et / .dps）"
+    required: true
+  output_format:
+    type: string
+    description: "输出格式：markdown（默认）/ txt"
+    default: "markdown"
+    required: false
+  output_path:
+    type: string
+    description: "输出文件路径，不填则自动生成到 workspace output/"
+    required: false
+
+allowed_tools:
+  - read_file
+  - read_text
+  - write_file
+  - shell_executor
+  - python_executor

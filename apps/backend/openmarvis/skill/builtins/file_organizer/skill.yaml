@@ -29,6 +29,13 @@ params:
       If true (default), only produces the plan and previews moves, does not actually move files.
       Set to false ONLY after the user has reviewed the plan and confirmed via ask_user.
     required: false
+  blueprint_hash:
+    type: string
+    description: |
+      SHA256 hash of the blueprint JSON (from a previous dry_run). If provided, the execute stage
+      will verify the blueprint hasn't changed before proceeding. Pass the hash returned by the
+      dry_run stage to enable tamper detection.
+    required: false
 
 allowed_tools:
   - list_dir

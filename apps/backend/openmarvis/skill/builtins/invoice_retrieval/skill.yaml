@@ -1,0 +1,31 @@
+name: invoice-retrieval
+version: "1.0.0"
+description: |
+  从指定目录检索发票文件（PDF / 图片），提取金额、日期、税号、抬头等关键字段，
+  生成结构化汇总表格（Markdown 或 Excel）。
+author: OpenMarvis
+license: Apache-2.0
+risk: low
+
+params:
+  source_dir:
+    type: string
+    description: "发票所在目录的绝对路径"
+    required: true
+  output_path:
+    type: string
+    description: "汇总结果输出路径（.md 或 .xlsx），默认写到 workspace output/"
+    required: false
+  date_range:
+    type: string
+    description: "日期范围过滤，格式 YYYY-MM 或 YYYY-MM-DD~YYYY-MM-DD，不填则不过滤"
+    required: false
+
+allowed_tools:
+  - search_files
+  - read_file
+  - read_text
+  - analyze_image
+  - write_file
+  - python_executor
+  - spotlight
