@@ -82,6 +82,11 @@ class WriteFileTool(Tool):
         if decision.action == "confirm":
             return ToolResult(error=f"requires_confirm: {decision.reason}")
         p = Path(args.file_path).expanduser()
+        # 仅对落在 workspace 内的写入计配额——外部路径由 PathGuard 决定能否写。
+        content_bytes = args.content.encode("utf-8")
+        quota = _check_workspace_quota(ctx, p, len(content_bytes))
+        if quota is not None and quota.action == "block":
+            return ToolResult(error=f"quota_exceeded: {quota.reason}")
         p.parent.mkdir(parents=True, exist_ok=True)
         if p.exists():
             stem, suffix = p.stem, p.suffix
@@ -95,7 +100,10 @@ class WriteFileTool(Tool):
         p.write_text(args.content, encoding="utf-8")
         if self.engine is not None:
             record_write(self.engine, conv_id=ctx.conv_id, path=str(p))
-        return ToolResult(content=f"已写入: {p}")
+        msg = f"已写入: {p}"
+        if quota is not None and quota.action == "warn":
+            msg += f"\n⚠️ {quota.reason}"
+        return ToolResult(content=msg)
 
 
 # ---------- edit_file ----------
@@ -176,8 +184,9 @@ class DeleteTool(Tool):
     name = "delete"
     description = (
         "删除文件/文件夹（移至 .trash 回收站，7 天后硬删）。"
-        "高风险工具：会被 SecurityGate 标为 confirm，调用方必须先调 ask_user 取得"
-        "用户授权后再调本工具——目前前端没有原生的批量勾选确认 UI。"
+        "高风险工具：SecurityGate 会返回 deletion_confirm 类型的 confirm decision。"
+        "前端实现原生勾选 UI 后框架自动弹确认卡片；"
+        "前端未实现时调用方需先调 ask_user 取得用户授权后再重发。"
     )
     args_model = DeleteArgs
     risk_level = "high"
@@ -192,11 +201,13 @@ class DeleteTool(Tool):
         if decision.action == "block":
             return ToolResult(error=f"risk_blocked: {decision.reason}")
         if decision.action == "confirm":
-            # high risk → confirm；调用方须先 ask_user 拿到授权再重发。直接拒，
-            # 避免和 prompt 里以前那条不准确的"自带 UI 豁免"互相矛盾导致裸跑。
+            # deletion_confirm → 前端原生勾选 UI（C.1 完成后框架自动处理）。
+            # 未接入前端时调用方须先 ask_user 拿到授权再重发。
             return ToolResult(
                 error=(f"requires_confirm: {decision.reason} —— "
-                       "delete 是高风险，请先调 ask_user 取得用户确认后再重试。")
+                       "delete 是高风险，请先调 ask_user 取得用户确认后再重试。"),
+                cards=[Card(type="deletion_preview",
+                            payload="\n".join(args.file_paths))],
             )
         trash_base = Path("~/.openmarvis/.trash").expanduser()
         trash_dir = trash_base / f"{ctx.conv_id}_{int(time.time())}"

@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     llm: LLMSettings = Field(default_factory=LLMSettings)
     workspace: WorkspaceSettings = Field(default_factory=WorkspaceSettings)
     browser: BrowserSettings = Field(default_factory=BrowserSettings)
+    # 模型披露口径（Agent 被问及底层模型时的统一回答）。
+    # 生产部署可改为实际模型组合描述，如 "腾讯混元 Hy3 + DeepSeek-V4 Pro"。
+    model_disclosure: str = "OpenMarvis"
     # Runtime managers attached by app lifespan / build_main_agent — not loaded
     # from env. Declared here so pydantic's strict __setattr__ accepts them.
     scheduler_manager: Any = None

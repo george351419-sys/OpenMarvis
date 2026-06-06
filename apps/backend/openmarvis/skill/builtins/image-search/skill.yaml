@@ -1,0 +1,41 @@
+name: image-search
+version: 1.0.0
+description: |
+  Semantic image search using a two-stage pipeline:
+  1. Multi-angle keyword expansion → BM25 / Spotlight candidate retrieval
+  2. Visual verification via analyze_image to confirm relevance
+  Returns a deduplicated, relevance-ranked image list.
+author: OpenMarvis
+license: Apache-2.0
+risk: low
+
+params:
+  query:
+    type: string
+    description: |
+      Natural language description of the image to find.
+      Examples: "风景照", "有猫的图片", "产品架构图", "去年旅行的照片".
+    required: true
+  search_root:
+    type: string
+    description: |
+      Absolute path to the directory tree to search within.
+      Defaults to the user's home directory (~) if omitted.
+    required: false
+  max_results:
+    type: integer
+    description: Maximum number of verified images to return. Defaults to 20.
+    required: false
+  visual_verify:
+    type: boolean
+    description: |
+      If true (default), run analyze_image on top candidates to confirm visual relevance.
+      Set to false only when speed matters more than precision.
+    required: false
+
+allowed_tools:
+  - spotlight
+  - search_file
+  - search_files
+  - analyze_image
+  - list_dir

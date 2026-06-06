@@ -1,0 +1,43 @@
+name: file-search
+version: 1.0.0
+description: |
+  Semantic document search using a two-layer relevance funnel:
+  1. BM25 keyword retrieval via search_file (FTS5) with optional Spotlight fallback
+  2. LLM-based relevance scoring to filter out false positives
+  Returns a ranked, relevance-explained file list.
+author: OpenMarvis
+license: Apache-2.0
+risk: low
+
+params:
+  query:
+    type: string
+    description: |
+      Natural language description of the document(s) to find.
+      Examples: "关于深度学习的论文", "2025年的销售合同", "产品需求文档".
+    required: true
+  search_root:
+    type: string
+    description: |
+      Absolute path to the directory tree to search within.
+      Defaults to the workspace root if omitted.
+    required: false
+  file_types:
+    type: array
+    description: |
+      List of file extensions to restrict search to.
+      Examples: ["pdf", "docx"], ["md", "txt"].
+      If omitted, searches all document types.
+    required: false
+  max_results:
+    type: integer
+    description: Maximum number of verified files to return. Defaults to 10.
+    required: false
+
+allowed_tools:
+  - search_file
+  - search_chunk
+  - spotlight
+  - search_files
+  - read_file
+  - read_text

@@ -12,6 +12,8 @@ SSE_EVENTS = SimpleNamespace(
     TOOL_CALL_RESULT="tool_call_result",
     CARD="card",
     ASK_USER="ask_user",
+    # C.1: 删除预览卡片事件 — 前端渲染文件勾选确认 UI
+    DELETION_PREVIEW="deletion_preview",
     SUB_AGENT_START="sub_agent_start",
     SUB_AGENT_END="sub_agent_end",
     WARNING="warning",

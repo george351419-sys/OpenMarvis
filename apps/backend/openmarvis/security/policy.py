@@ -11,14 +11,19 @@ class Decision:
     action: Action
     reason: str = ""
     details: dict = field(default_factory=dict)
+    # 细化 confirm 的类型，供前端选择渲染哪种确认 UI。
+    # "deletion_confirm" → 触发文件勾选卡片（C.1 实现后生效）
+    # "" / None → 普通 ask_user 文字确认
+    decision_type: str = ""
 
     @staticmethod
     def allow(reason: str = "") -> Decision:
         return Decision(action="allow", reason=reason)
 
     @staticmethod
-    def confirm(reason: str, **details) -> Decision:
-        return Decision(action="confirm", reason=reason, details=details)
+    def confirm(reason: str, decision_type: str = "", **details) -> Decision:
+        return Decision(action="confirm", reason=reason,
+                        decision_type=decision_type, details=details)
 
     @staticmethod
     def block(reason: str, **details) -> Decision:
@@ -60,9 +65,12 @@ class SecurityGate:
             "low": "allow", "medium": "confirm", "high": "confirm",
         }
         action: Action = level_to_action.get(ra.level, "allow")
+        # delete 工具使用专用 decision_type，供前端渲染文件勾选确认卡片（C.1）。
+        dtype = "deletion_confirm" if getattr(tool, "name", "") == "delete" and action == "confirm" else ""
         return Decision(
             action=action,
             reason="; ".join(ra.reasons) or f"{tool.name} risk={ra.level}",
+            decision_type=dtype,
             details={"dynamic_reasons": list(ra.reasons), "tool": tool.name},
         )
 
