@@ -60,6 +60,9 @@ from ...tools.registry import ToolRegistry
 from ...tools.search_chunk import SearchChunkTool
 from ...tools.search_file import SearchFileTool
 from ...tools.spotlight import SpotlightTool
+from ...tools.ai_search import AiSearchTool
+from ...tools.fs_search import FsSearchContentTool, FsSearchFileTool
+from ...tools.invoice import InvoiceDetectionTool, InvoiceParsingTool
 from ...tools.web import WebFetchTool, WebSearchTool
 from ...workspace.manager import Workspace
 from ..base import AgentBase
@@ -67,7 +70,8 @@ from ..base import AgentBase
 
 def _build_registry(agent_name: str, *, llm, engine, brave_key: str | None,  # noqa: C901
                      browser_pool: BrowserPool | None = None,
-                     ask_registry: PendingAskRegistry | None = None) -> ToolRegistry:
+                     ask_registry: PendingAskRegistry | None = None,
+                     coze_key: str | None = None) -> ToolRegistry:
     reg = ToolRegistry()
     tools: tuple[Tool, ...]
     if agent_name == "file-agent":
@@ -80,7 +84,12 @@ def _build_registry(agent_name: str, *, llm, engine, brave_key: str | None,  # n
                   ConvertFileTool(engine=engine),
                   ShellExecutorTool(), PythonExecutorTool(),
                   AnalyzeImageTool(llm=llm),
-                  SpotlightTool())
+                  SpotlightTool(),
+                  FsSearchFileTool(),
+                  FsSearchContentTool(),
+                  InvoiceDetectionTool(llm=llm),
+                  InvoiceParsingTool(llm=llm),
+                  AiSearchTool(api_key=brave_key, llm=llm))
     elif agent_name == "search-agent":
         tools = (WebSearchTool(api_key=brave_key), WebFetchTool(),
                   PythonExecutorTool())

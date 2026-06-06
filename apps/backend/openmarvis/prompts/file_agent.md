@@ -51,15 +51,18 @@
 2. **内容类 Skill 仅限写入 / 编辑 / 生成场景**：Skill 处理"生成"，不处理"阅读"；Skill 的输入依赖 memory，不直接读文件。
 3. **续读必须继续用 `read_file`**：已开始用 `read_file` 读的文件，续页必须继续用 `read_file(offset=N)`，不得中途切换为 Skill。
 
-### 找文件 —— 三选一
+### 找文件 —— 按以下优先级顺序尝试
 
-| 场景 | 工具 |
-|---|---|
-| 只知关键词 / 不知大致路径 / 系统级文件 | `spotlight` —— macOS 原生，秒级 |
-| 工作区内**内容搜索** / 想要 BM25 排序 + 中文支持 | `search_file` —— SQLite FTS5；首次用传 `reindex_root=<workspace>` 建索引 |
-| 简单 glob（`*.md` / `*.py`）+ 偶尔正文 grep | `search_files` —— os.walk，工作区小时够用 |
+| 优先级 | 场景 | 工具 |
+|---|---|---|
+| 1 | 只知关键词 / 不知大致路径 / 系统级文件 | `spotlight` —— macOS 原生，秒级 |
+| 2 | 工作区内**内容搜索** / 想要 BM25 排序 + 中文支持 | `search_file` —— SQLite FTS5；首次用传 `reindex_root=<workspace>` 建索引 |
+| 3 | 简单 glob（`*.md` / `*.py`）+ 偶尔正文 grep | `search_files` —— os.walk，工作区小时够用 |
+| 4（兜底）| 上述均无结果，**文件名搜索**（glob / 正则） | `fs_search_file(pattern=..., root=...)` —— ripgrep，不依赖索引 |
+| 5（兜底）| 上述均无结果，**内容全文搜索**（精确关键词） | `fs_search_content(pattern=..., root=...)` —— ripgrep，全文 grep |
 
-**Spotlight 0 结果时回退到 `search_file`**（先 reindex 再查）。
+**搜索降级规则**：Spotlight 0 结果 → `search_file`（先 reindex 再查）→ 仍无结果 → `fs_search_file` → `fs_search_content`。
+每级无结果再降，不要跳级。
 
 ### 语义搜索强制路由
 
@@ -287,6 +290,25 @@ read_file(offset=<段落行>, limit=20) → 读完整上下文
 | `excel_processing` | Excel 探查 / 过滤 / 透视 |
 | `pdf` | PDF 抽文本 / 拆分 / 合并 |
 | `planning_with_files` | 批处理 ≥10 文件的长任务 |
+| `pptx` | 创建/编辑 PowerPoint 演示文稿（含合并/拆分/转 PDF） |
+| `docx` | 创建/编辑 Word 文档（含目录/排版/转 PDF） |
+| `photo-to-video` | 图片合成 MP4 视频（支持转场 / 背景音乐） |
+| `invoice-retrieval` | 批量检索并汇总发票（PDF/图片均支持） |
+| `legacy-doc-parser` | 解析 WPS 私有格式（.wps/.et/.dps → Markdown） |
+
+### 发票处理工具路由
+
+| 场景 | 路由 |
+|---|---|
+| 判断一批文件里哪些是发票 | `invoice_detection(file_paths=[...])` 工具 |
+| 提取单张发票的结构化字段 | `invoice_parsing(file_path=...)` 工具 |
+| 批量检索目录下所有发票并汇总表格 | `use_skill(invoice-retrieval, source_dir=...)` |
+
+**发票处理标准工作流**（"帮我整理发票" / "提取这批发票的金额"）：
+1. `invoice_detection` 批量过滤出发票文件
+2. `invoice_parsing` 逐张提取字段
+3. 用 `python_executor` 生成汇总 Excel / Markdown 表格
+4. 或直接 `use_skill(invoice-retrieval, ...)` 一步完成
 
 ## 工作区
 

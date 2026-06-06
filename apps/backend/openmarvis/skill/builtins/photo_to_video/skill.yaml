@@ -1,0 +1,65 @@
+name: photo-to-video
+version: "1.0.0"
+description: |
+  Combine a set of photos/images into an MP4 video slideshow using FFmpeg.
+  Supports: custom duration per slide, background music, Ken Burns zoom effect,
+  crossfade transitions, subtitle overlay, and automatic aspect ratio handling.
+  Requires FFmpeg on PATH.
+author: OpenMarvis
+license: Apache-2.0
+risk: low
+
+params:
+  source_dir:
+    type: string
+    description: |
+      Absolute path to directory containing photos, OR omit and use source_paths.
+      Images are sorted by filename by default.
+    required: false
+  source_paths:
+    type: array
+    description: |
+      Explicit list of image absolute paths (in display order).
+      Use this to specify exact order/selection instead of source_dir.
+    required: false
+  output_path:
+    type: string
+    description: Absolute path for the output MP4 file. Auto-generated under output/ if omitted.
+    required: false
+  duration_per_slide:
+    type: number
+    description: Seconds each image is displayed (default 3.0, min 1.0, max 30.0).
+    required: false
+  music_path:
+    type: string
+    description: |
+      Absolute path to background music file (MP3/AAC/WAV).
+      Music is looped/trimmed to match video length. Omit for no audio.
+    required: false
+  transition:
+    type: string
+    description: |
+      Transition effect between slides.
+      Options: "fade" (default), "none", "zoom" (Ken Burns effect).
+    enum: [fade, none, zoom]
+    required: false
+  resolution:
+    type: string
+    description: |
+      Output resolution. Options: "1920x1080" (default), "1280x720", "3840x2160".
+    required: false
+  fps:
+    type: integer
+    description: Frames per second for output video (default 30).
+    required: false
+  title:
+    type: string
+    description: |
+      Optional title text to overlay on the first slide (white text, bottom-center).
+    required: false
+
+allowed_tools:
+  - shell_executor
+  - python_executor
+  - search_files
+  - list_dir

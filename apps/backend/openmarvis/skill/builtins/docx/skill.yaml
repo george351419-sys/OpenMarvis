@@ -1,0 +1,61 @@
+name: docx
+version: "1.0.0"
+description: |
+  Create or edit professional Word documents (.docx) using python-docx.
+  Supports: generating structured reports with TOC/headings/page numbers,
+  editing existing documents, format conversion, inserting images/tables,
+  handling tracked changes and annotations.
+  Automatically installs python-docx if needed.
+author: OpenMarvis
+license: Apache-2.0
+risk: low
+
+params:
+  action:
+    type: string
+    description: |
+      Operation to perform:
+      - "create"  : create a new DOCX from topic/outline/content
+      - "edit"    : apply natural language edits to an existing DOCX
+      - "convert" : convert DOCX to PDF/MD/TXT (requires LibreOffice for PDF)
+      - "extract" : extract text/tables from an existing DOCX
+    enum: [create, edit, convert, extract]
+    required: true
+  topic:
+    type: string
+    description: Document topic or content outline (for "create" action).
+    required: false
+  source_path:
+    type: string
+    description: Absolute path to existing DOCX file (for edit/convert/extract actions).
+    required: false
+  output_path:
+    type: string
+    description: Absolute path for the output file. Auto-generated if omitted.
+    required: false
+  output_format:
+    type: string
+    description: Target format for "convert" action (pdf / md / txt). Default pdf.
+    required: false
+  instructions:
+    type: string
+    description: |
+      Natural language instructions for "edit" action.
+      Examples: "把所有一级标题字体改为黑色", "在文末插入表格，三列：序号/姓名/部门".
+    required: false
+  style:
+    type: string
+    description: |
+      Document style preset for "create" action.
+      Options: "报告", "合同", "简历", "学术论文", "商业计划书". Default "报告".
+    required: false
+  include_toc:
+    type: boolean
+    description: Whether to include a Table of Contents (for "create" action). Default true.
+    required: false
+
+allowed_tools:
+  - python_executor
+  - shell_executor
+  - read_file
+  - write_file

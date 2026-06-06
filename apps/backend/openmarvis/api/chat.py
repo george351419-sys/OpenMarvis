@@ -80,7 +80,8 @@ async def chat(req: ChatRequest, request: Request) -> EventSourceResponse:
     ask_registry = get_ask_registry(req.conv_id)
     agent = build_main_agent(
         conv_id=req.conv_id, llm=llm, engine=engine,
-        brave_key=None,
+        brave_key=os.getenv("BRAVE_API_KEY"),
+        coze_key=os.getenv("COZE_API_KEY"),
         workspace=workspace, memory_store=memory, security=security,
         event_sink=sink, user_settings=settings, ask_registry=ask_registry,
         browser_pool=state.browser_pool,
@@ -158,7 +159,8 @@ async def _execute_scheduled_chat(virtual_conv_id: str, instruction: str,
 
     agent = build_main_agent(
         conv_id=virtual_conv_id, llm=llm, engine=engine,
-        brave_key=None,
+        brave_key=os.getenv("BRAVE_API_KEY"),
+        coze_key=os.getenv("COZE_API_KEY"),
         workspace=workspace, memory_store=memory, security=security,
         event_sink=sink, user_settings=settings, ask_registry=None,
         browser_pool=state.browser_pool,

@@ -1,0 +1,67 @@
+name: pptx
+version: "1.0.0"
+description: |
+  Create or edit PowerPoint presentations (.pptx) using python-pptx.
+  Supports: creating from outline, editing existing slides, merging/splitting,
+  applying themes/layouts, inserting images/tables/charts.
+  Automatically installs python-pptx if needed.
+author: OpenMarvis
+license: Apache-2.0
+risk: low
+
+params:
+  action:
+    type: string
+    description: |
+      Operation to perform:
+      - "create"  : create a new PPTX from topic/outline
+      - "edit"    : modify an existing PPTX file
+      - "merge"   : combine multiple PPTX files into one
+      - "split"   : extract specific slides into a new file
+      - "convert" : convert PPTX to PDF/PNG (requires LibreOffice)
+    enum: [create, edit, merge, split, convert]
+    required: true
+  topic:
+    type: string
+    description: Presentation topic or outline (used for "create" action). Can be multi-line.
+    required: false
+  source_path:
+    type: string
+    description: Absolute path to existing PPTX file (for edit/split/convert actions).
+    required: false
+  source_paths:
+    type: array
+    description: List of PPTX file paths (for merge action).
+    required: false
+  output_path:
+    type: string
+    description: Absolute path for the output file. Auto-generated if omitted.
+    required: false
+  slides:
+    type: integer
+    description: Number of slides to generate (for "create" action, default 8, max 20).
+    required: false
+  template:
+    type: string
+    description: |
+      Visual theme/template style for "create" action.
+      Examples: "商务简约", "科技蓝", "学术", "营销活动". Default "商务简约".
+    required: false
+  slide_range:
+    type: string
+    description: |
+      Slide range for "split" action, e.g. "1-5", "3,7,9". 1-based index.
+    required: false
+  instructions:
+    type: string
+    description: |
+      Natural language edit instructions for "edit" action.
+      Examples: "把标题字体改成红色", "在第3页插入公司logo图片 /path/to/logo.png".
+    required: false
+
+allowed_tools:
+  - python_executor
+  - shell_executor
+  - read_file
+  - write_file
+  - analyze_image

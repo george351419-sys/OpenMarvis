@@ -28,6 +28,9 @@ from ..tools.search_chunk import SearchChunkTool
 from ..tools.search_file import SearchFileTool
 from ..tools.spotlight import SpotlightTool
 from ..tools.user_pref import ForgetUserPreferenceTool, SaveUserPreferenceTool
+from ..tools.ai_search import AiSearchTool
+from ..tools.fs_search import FsSearchContentTool, FsSearchFileTool
+from ..tools.invoice import InvoiceDetectionTool, InvoiceParsingTool
 from ..tools.web import WebFetchTool, WebSearchTool
 from ..workspace.manager import Workspace
 from .base import AgentBase
@@ -49,6 +52,7 @@ def build_main_agent(
     llm,
     engine,
     brave_key: str | None,
+    coze_key: str | None = None,
     workspace: Workspace,
     memory_store: MemoryStore,
     security: SecurityGate,
@@ -80,6 +84,11 @@ def build_main_agent(
         PythonExecutorTool(),
         WebSearchTool(api_key=brave_key),
         WebFetchTool(),
+        AiSearchTool(api_key=brave_key, llm=llm),
+        FsSearchFileTool(),
+        FsSearchContentTool(),
+        InvoiceDetectionTool(llm=llm),
+        InvoiceParsingTool(llm=llm),
         AnalyzeImageTool(llm=llm),
         AskUserTool(registry=ask_registry),
         DispatchTaskTool(factory=factory, sub_store=sub_store),
