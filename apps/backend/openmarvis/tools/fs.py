@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import fnmatch
+import json
 import os
 import shutil
 import time
@@ -10,6 +11,21 @@ from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 from ..store.audit import record_write
 from .base import Card, Tool, ToolContext, ToolResult
+
+
+def _check_workspace_quota(ctx: ToolContext, path: Path, content_size: int):
+    """如果 path 在 workspace 内，检查写入 content_size 字节后是否超配额。返回 QuotaDecision or None。"""
+    if ctx.workspace is None:
+        return None
+    if not ctx.workspace.contains(path):
+        return None
+    return ctx.workspace.check_quota(
+        content_size=content_size,
+        max_per_conv_mb=2048,
+        max_total_gb=20,
+        warn_threshold_pct=80,
+    )
+
 
 # ---------- read_text ----------
 
@@ -166,6 +182,12 @@ class EditFileTool(Tool):
             new_text = text.replace(args.old_str, args.new_str, 1)
         if eol != "\n":
             new_text = new_text.replace("\n", eol)
+        # 配额检查：只检查净增量（不缩减时 delta ≤ 0 直接跳过）
+        delta = len(new_text.encode("utf-8")) - p.stat().st_size
+        if delta > 0:
+            quota = _check_workspace_quota(ctx, p, delta)
+            if quota is not None and quota.action == "block":
+                return ToolResult(error=f"quota_exceeded: {quota.reason}")
         with p.open("w", encoding="utf-8", newline="") as f:
             f.write(new_text)
         if self.engine is not None:
@@ -184,13 +206,16 @@ class DeleteTool(Tool):
     name = "delete"
     description = (
         "删除文件/文件夹（移至 .trash 回收站，7 天后硬删）。"
-        "高风险工具：SecurityGate 会返回 deletion_confirm 类型的 confirm decision。"
-        "前端实现原生勾选 UI 后框架自动弹确认卡片；"
-        "前端未实现时调用方需先调 ask_user 取得用户授权后再重发。"
+        "高风险工具：调用后前端自动弹出文件勾选确认卡片，用户确认后执行删除。"
     )
     args_model = DeleteArgs
     risk_level = "high"
     available_to = ("main", "file-agent")
+
+    def __init__(self, ask_registry=None):
+        # ask_registry: PendingAskRegistry | None
+        # None → 降级为旧的 requires_confirm 流（定时任务等无人在线场景）
+        self.ask_registry = ask_registry
 
     async def execute(self, args: DeleteArgs, ctx: ToolContext) -> ToolResult:
         if len(args.file_paths) > 50:
@@ -201,19 +226,40 @@ class DeleteTool(Tool):
         if decision.action == "block":
             return ToolResult(error=f"risk_blocked: {decision.reason}")
         if decision.action == "confirm":
-            # deletion_confirm → 前端原生勾选 UI（C.1 完成后框架自动处理）。
-            # 未接入前端时调用方须先 ask_user 拿到授权再重发。
-            return ToolResult(
-                error=(f"requires_confirm: {decision.reason} —— "
-                       "delete 是高风险，请先调 ask_user 取得用户确认后再重试。"),
-                cards=[Card(type="deletion_preview",
-                            payload="\n".join(args.file_paths))],
-            )
+            if self.ask_registry is not None:
+                # 原生 UI 路径：发 deletion_preview 卡片，等待前端勾选回调
+                ask_id, fut = self.ask_registry.create()
+                payload = json.dumps({"ask_id": ask_id, "files": args.file_paths},
+                                     ensure_ascii=False)
+                await ctx.event_sink.emit("card", {"type": "deletion_preview",
+                                                    "payload": payload})
+                choices = await fut
+                if not choices or choices == ["cancel"]:
+                    return ToolResult(content="用户取消了删除操作")
+                # choices 为用户勾选的文件路径列表（子集或全集）
+                confirmed = [p for p in choices if p in args.file_paths]
+                if not confirmed:
+                    return ToolResult(content="用户未勾选任何文件，操作已取消")
+            else:
+                # 无 UI 的场景（定时任务等）：返回 requires_confirm
+                return ToolResult(
+                    error=(f"requires_confirm: {decision.reason} —— "
+                           "delete 是高风险，无人在线无法完成原生确认，请在交互会话中执行。"),
+                    cards=[Card(type="deletion_preview",
+                                payload=json.dumps({"ask_id": "",
+                                                    "files": args.file_paths},
+                                                   ensure_ascii=False))],
+                )
+        else:
+            confirmed = args.file_paths
+        return await self._do_delete(confirmed, ctx)
+
+    async def _do_delete(self, file_paths: list[str], ctx: ToolContext) -> ToolResult:
         trash_base = Path("~/.openmarvis/.trash").expanduser()
         trash_dir = trash_base / f"{ctx.conv_id}_{int(time.time())}"
         trash_dir.mkdir(parents=True, exist_ok=True)
         deleted: list[Path] = []
-        for raw in args.file_paths:
+        for raw in file_paths:
             p = Path(raw).expanduser()
             if not p.exists():
                 continue

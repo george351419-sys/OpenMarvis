@@ -73,7 +73,7 @@ def build_main_agent(
         ReadFileTool(),
         WriteFileTool(engine=engine),
         EditFileTool(engine=engine),
-        DeleteTool(),
+        DeleteTool(ask_registry=ask_registry),
         ListDirTool(),
         SearchFilesTool(),
         ShellExecutorTool(),

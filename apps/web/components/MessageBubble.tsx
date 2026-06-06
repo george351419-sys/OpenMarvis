@@ -29,7 +29,7 @@ export function MessageBubble(props: Props) {
         {turn.cards.map((c, i) => {
           const Renderer = CARD_RENDERERS[c.type as CardKey] as any;
           if (!Renderer) return null;
-          if (c.type === "mv-ask-user") {
+          if (c.type === "mv-ask-user" || c.type === "deletion_preview") {
             try {
               const data = JSON.parse(c.payload);
               return <Renderer key={i} convId={convId} {...data} />;
