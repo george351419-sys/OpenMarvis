@@ -64,6 +64,7 @@ from ...tools.ai_search import AiSearchTool
 from ...tools.fs_search import FsSearchContentTool, FsSearchFileTool
 from ...tools.invoice import InvoiceDetectionTool, InvoiceParsingTool
 from ...tools.search_image import SearchImageTool
+from ...tools.send_file import SendFileTool
 from ...tools.web import WebFetchTool, WebSearchTool
 from ...workspace.manager import Workspace
 from ..base import AgentBase
@@ -91,13 +92,14 @@ def _build_registry(agent_name: str, *, llm, engine, brave_key: str | None,  # n
                   InvoiceDetectionTool(llm=llm),
                   InvoiceParsingTool(llm=llm),
                   SearchImageTool(engine=engine),
-                  AiSearchTool(api_key=brave_key, llm=llm))
+                  AiSearchTool(api_key=brave_key, llm=llm),
+                  SendFileTool())
     elif agent_name == "search-agent":
         tools = (WebSearchTool(api_key=brave_key), WebFetchTool(),
                   PythonExecutorTool())
-    elif agent_name == "browser-agent":
-        assert browser_pool is not None, "browser-agent 需要 BrowserPool"
-        assert ask_registry is not None, "browser-agent 需要 PendingAskRegistry"
+    elif agent_name in ("browser", "browser-agent"):
+        assert browser_pool is not None, "browser 需要 BrowserPool"
+        assert ask_registry is not None, "browser 需要 PendingAskRegistry"
         tools = (NavigateTool(pool=browser_pool),
                   CurrentUrlTool(pool=browser_pool),
                   GoBackTool(pool=browser_pool),
@@ -164,11 +166,13 @@ class SubAgentFactory:
                                     brave_key=self.brave_key,
                                     browser_pool=self.browser_pool,
                                     ask_registry=self.ask_registry)
+        # "browser" is the canonical prompt-facing name; map to the actual prompt file
+        prompt_name = "browser_agent" if agent_name == "browser" else agent_name.replace("-", "_")
         return AgentBase(
             name=agent_name,
             agent_id=f"sa-{ulid.new().str.lower()}",
             conv_id=conv_id,
-            system_prompt=load_prompt(agent_name.replace("-", "_")),
+            system_prompt=load_prompt(prompt_name),
             llm=self.llm,
             tool_registry=registry,
             workspace=workspace,

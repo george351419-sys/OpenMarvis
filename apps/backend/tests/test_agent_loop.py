@@ -187,7 +187,7 @@ async def test_user_pref_injected_into_system_prompt(ws, tmp_path):
     await agent.run(user_message="hi", memory_ids=[])
     sys_msg = agent.message_history[0]
     assert sys_msg["role"] == "system"
-    assert "<user_preference_rules>" in sys_msg["content"]
+    assert "<user_preference_rules" in sys_msg["content"]
     assert "不要用 emoji" in sys_msg["content"]
     assert sys_msg["content"].startswith("BASE")  # 原 prompt 没被替换
 
@@ -210,7 +210,7 @@ async def test_user_pref_block_empty_when_no_rules(ws, tmp_path):
         user_settings=None,
     )
     await agent.run(user_message="hi", memory_ids=[])
-    assert "<user_preference_rules>" not in agent.message_history[0]["content"]
+    assert "<user_preference_rules" not in agent.message_history[0]["content"]
 
 
 async def test_loop_iteration_limit(ws):

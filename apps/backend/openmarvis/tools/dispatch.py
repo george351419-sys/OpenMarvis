@@ -73,7 +73,7 @@ def parse_task_envelope(text: str, *, workspace: Workspace | None = None) -> Tas
 
 
 class DispatchTaskArgs(BaseModel):
-    agent_name: str = Field(description="目标 Sub Agent 名（file-agent / search-agent / browser-agent / computer-agent / app-agent）")
+    agent_name: str = Field(description="目标 Sub Agent 名（file-agent / search-agent / browser / computer-agent / app-agent）")
     task: str = Field(description="结构化任务（<overall_goal>...</overall_goal><current_task>...</current_task>）")
     memory_ids: list[str] = Field(default_factory=list, description="最多 20 条历史 memory_xxx")
     inherit_agent_id: str = Field(default="", description="可选：继承同 conv 已完成同名 Sub Agent")
@@ -134,7 +134,7 @@ class DispatchTaskTool(Tool):
         )
 
     async def execute(self, args: DispatchTaskArgs, ctx: ToolContext) -> ToolResult:
-        if args.agent_name not in ("file-agent", "search-agent", "browser-agent",
+        if args.agent_name not in ("file-agent", "search-agent", "browser", "browser-agent",
                                     "computer-agent", "app-agent"):
             return ToolResult(error=f"未知 Sub Agent: {args.agent_name}")
         if len(args.memory_ids) > 20:

@@ -21,6 +21,7 @@ from ..tools.fs import (
 )
 from ..tools.image import AnalyzeImageTool
 from ..tools.present import PresentResultTool
+from ..tools.send_file import SendFileTool
 from ..tools.convert_file import ConvertFileTool
 from ..tools.read_file import ReadFileTool
 from ..tools.registry import ToolRegistry
@@ -101,6 +102,7 @@ def build_main_agent(
         ConvertFileTool(engine=engine),
         SaveUserPreferenceTool(),
         ForgetUserPreferenceTool(),
+        SendFileTool(),
     )
     for t in main_tools:
         reg.register(t)
