@@ -50,6 +50,21 @@ class ReadFileArgs(BaseModel):
         default=False,
         description="Excel 文件：读所有 sheet 并合并输出（带分隔符）。",
     )
+    complex_mode: bool = Field(
+        default=False,
+        description=(
+            "Excel 复杂表格两阶段读取模式。当默认输出表头混乱/列错位/读不通顺时启用。"
+            "第一轮返回原始数据 + [ANNOTATION_REQUIRED] 提示；"
+            "按提示生成 segments JSON 后，第二轮通过 annotation 回传得到最终结果。"
+        ),
+    )
+    annotation: str | None = Field(
+        default=None,
+        description=(
+            "complex_mode 第二轮：回传上一轮 [ANNOTATION_REQUIRED] 提示中要求的 "
+            "segments JSON 字符串，工具将按此重新编排输出。"
+        ),
+    )
 
 
 # ---------------- 各格式解析器 ----------------
@@ -126,10 +141,90 @@ def _parse_xlsx_sheet(ws, sheet_name: str) -> str:
     return "\n".join(out)
 
 
+def _parse_xlsx_complex_raw(ws, sheet_name: str) -> str:
+    """complex_mode 第一轮：输出带行号的原始数据，附 ANNOTATION_REQUIRED 指引。"""
+    rows: list[list[str]] = []
+    for row in ws.iter_rows(values_only=True):
+        rows.append(["" if v is None else str(v) for v in row])
+    if not rows:
+        return f"## Sheet: {sheet_name}\n\n[空]\n\n[ANNOTATION_REQUIRED: 该 sheet 为空，无需 annotation]"
+
+    raw_lines = [f"## Sheet: {sheet_name} — 原始数据（带行号）\n"]
+    for i, row in enumerate(rows):
+        raw_lines.append(f"Row {i}: {row}")
+
+    annotation_guide = (
+        "\n\n[ANNOTATION_REQUIRED]\n"
+        "上方为原始行数据。请识别表格结构后，回传如下格式的 segments JSON：\n"
+        "```json\n"
+        '[\n'
+        '  {"header_rows": [0, 1], "data_start_row": 2, "label": "主表"},\n'
+        '  {"header_rows": [10], "data_start_row": 11, "label": "子表（可选）"}\n'
+        "]\n"
+        "```\n"
+        "- header_rows: 表头所在行号列表（支持多级表头）\n"
+        "- data_start_row: 数据起始行号\n"
+        "- label: 该子表的描述（可选）\n"
+        "生成完毕后，以 annotation=<上方 JSON 字符串> 重新调用 read_file 得到最终结果。"
+    )
+    return "\n".join(raw_lines) + annotation_guide
+
+
+def _parse_xlsx_with_annotation(ws, sheet_name: str, annotation: str) -> str:
+    """complex_mode 第二轮：按 annotation segments 重新编排输出。"""
+    import json as _json
+    rows: list[list[str]] = []
+    for row in ws.iter_rows(values_only=True):
+        rows.append(["" if v is None else str(v) for v in row])
+
+    try:
+        segments = _json.loads(annotation)
+    except _json.JSONDecodeError as e:
+        return f"[annotation JSON 解析失败: {e}]\n\n回退到标准输出：\n\n" + _parse_xlsx_sheet(ws, sheet_name)
+
+    if not isinstance(segments, list):
+        segments = [segments]
+
+    parts: list[str] = []
+    for seg in segments:
+        header_rows: list[int] = seg.get("header_rows", [0])
+        data_start: int = seg.get("data_start_row", header_rows[-1] + 1 if header_rows else 1)
+        label: str = seg.get("label", sheet_name)
+
+        if not header_rows or header_rows[0] >= len(rows):
+            continue
+
+        # 合并多级表头（水平拼接）
+        if len(header_rows) == 1:
+            headers = rows[header_rows[0]]
+        else:
+            merged: list[str] = []
+            for col in range(max(len(rows[r]) for r in header_rows)):
+                cell_parts = []
+                for r in header_rows:
+                    v = rows[r][col] if col < len(rows[r]) else ""
+                    if v and v not in cell_parts:
+                        cell_parts.append(v)
+                merged.append("/".join(cell_parts))
+            headers = merged
+
+        out = [f"## {label}\n"]
+        out.append("| " + " | ".join(str(h) for h in headers) + " |")
+        out.append("| " + " | ".join("---" for _ in headers) + " |")
+        for ri in range(data_start, len(rows)):
+            row = rows[ri]
+            padded = list(row) + [""] * max(0, len(headers) - len(row))
+            out.append("| " + " | ".join(str(v) for v in padded[:len(headers)]) + " |")
+        parts.append("\n".join(out))
+
+    return "\n\n---\n\n".join(parts) if parts else _parse_xlsx_sheet(ws, sheet_name)
+
+
 def _parse_xlsx(p: Path, *, sheet_name: str | None, sheet_index: int | None,
-                  read_all: bool) -> str:
+                  read_all: bool, complex_mode: bool = False,
+                  annotation: str | None = None) -> str:
     from openpyxl import load_workbook
-    wb = load_workbook(str(p), read_only=True, data_only=True)
+    wb = load_workbook(str(p), read_only=False, data_only=True)
     sheet_names = wb.sheetnames
     if read_all:
         return "\n\n---\n\n".join(
@@ -142,6 +237,11 @@ def _parse_xlsx(p: Path, *, sheet_name: str | None, sheet_index: int | None,
         target = sheet_names[sheet_index]
     else:
         target = sheet_names[0]
+
+    if complex_mode:
+        if annotation:
+            return _parse_xlsx_with_annotation(wb[target], target, annotation)
+        return _parse_xlsx_complex_raw(wb[target], target)
     return _parse_xlsx_sheet(wb[target], target)
 
 
@@ -182,10 +282,14 @@ _PARSERS: dict[str, Callable[..., str]] = {
     ".xlsx": lambda p, a: _parse_xlsx(
         p, sheet_name=a.sheet_name, sheet_index=a.sheet_index,
         read_all=a.read_all_sheets,
+        complex_mode=getattr(a, "complex_mode", False),
+        annotation=getattr(a, "annotation", None),
     ),
     ".xlsm": lambda p, a: _parse_xlsx(
         p, sheet_name=a.sheet_name, sheet_index=a.sheet_index,
         read_all=a.read_all_sheets,
+        complex_mode=getattr(a, "complex_mode", False),
+        annotation=getattr(a, "annotation", None),
     ),
     ".csv": lambda p, _a: _parse_csv(p),
     ".md": lambda p, _a: _parse_plain(p),
@@ -213,8 +317,8 @@ class ReadFileTool(Tool):
     description = (
         "读取复杂格式文档（PDF / DOCX / PPTX / XLSX / CSV / MD / TXT / JSON / YAML），"
         "返回 LLM 友好的 Markdown 文本。支持 offset/limit 分页避免一次塞爆上下文；"
-        "Excel 可通过 sheet_name / sheet_index / read_all_sheets 选择。"
-        "纯文本类（.md/.txt/.json）用 read_text 也可，但本工具会对 JSON 美化。"
+        "Excel 可通过 sheet_name / sheet_index / read_all_sheets 选择 sheet；"
+        "遇到复杂 Excel（合并单元格/多级表头）时用 complex_mode=true 两阶段读取。"
     )
     args_model = ReadFileArgs
     risk_level = "low"

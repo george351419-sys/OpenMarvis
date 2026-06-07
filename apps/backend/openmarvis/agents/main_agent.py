@@ -31,6 +31,7 @@ from ..tools.user_pref import ForgetUserPreferenceTool, SaveUserPreferenceTool
 from ..tools.ai_search import AiSearchTool
 from ..tools.fs_search import FsSearchContentTool, FsSearchFileTool
 from ..tools.invoice import InvoiceDetectionTool, InvoiceParsingTool
+from ..tools.search_image import SearchImageTool
 from ..tools.web import WebFetchTool, WebSearchTool
 from ..workspace.manager import Workspace
 from .base import AgentBase
@@ -89,6 +90,7 @@ def build_main_agent(
         FsSearchContentTool(),
         InvoiceDetectionTool(llm=llm),
         InvoiceParsingTool(llm=llm),
+        SearchImageTool(engine=engine),
         AnalyzeImageTool(llm=llm),
         AskUserTool(registry=ask_registry),
         DispatchTaskTool(factory=factory, sub_store=sub_store),

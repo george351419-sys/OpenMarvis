@@ -63,6 +63,7 @@ from ...tools.spotlight import SpotlightTool
 from ...tools.ai_search import AiSearchTool
 from ...tools.fs_search import FsSearchContentTool, FsSearchFileTool
 from ...tools.invoice import InvoiceDetectionTool, InvoiceParsingTool
+from ...tools.search_image import SearchImageTool
 from ...tools.web import WebFetchTool, WebSearchTool
 from ...workspace.manager import Workspace
 from ..base import AgentBase
@@ -89,6 +90,7 @@ def _build_registry(agent_name: str, *, llm, engine, brave_key: str | None,  # n
                   FsSearchContentTool(),
                   InvoiceDetectionTool(llm=llm),
                   InvoiceParsingTool(llm=llm),
+                  SearchImageTool(engine=engine),
                   AiSearchTool(api_key=brave_key, llm=llm))
     elif agent_name == "search-agent":
         tools = (WebSearchTool(api_key=brave_key), WebFetchTool(),
