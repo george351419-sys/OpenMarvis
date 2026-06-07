@@ -137,3 +137,56 @@ class CancelScheduleTool(Tool):
         if not ok:
             return ToolResult(error=f"cancel_failed: schedule {args.schedule_id} not found")
         return ToolResult(content=f"cancelled: {args.schedule_id}")
+
+
+class ModifyScheduleArgs(BaseModel):
+    schedule_id: str = Field(description="要修改的定时任务 ID（list_schedules 返回的 id）")
+    trigger_type: Literal["once", "interval", "cron"] | None = Field(
+        default=None, description="新触发类型；不传则保持不变")
+    trigger_spec: str | None = Field(
+        default=None,
+        description="新触发参数（once: ISO datetime；interval: 秒数；cron: 5 段 crontab）；不传则保持不变")
+    instruction: str | None = Field(
+        default=None, description="新执行指令文本；不传则保持不变")
+    description: str | None = Field(
+        default=None, description="新任务标题（只写做什么，禁止含时间字）；不传则保持不变")
+
+
+class ModifyScheduleTool(Tool):
+    name = "modify_scheduled_task"
+    description = "修改已创建的定时任务。只传需要变更的字段，其余保持不变。"
+    args_model = ModifyScheduleArgs
+    risk_level = "medium"
+    available_to = ("main",)
+
+    async def execute(self, args: ModifyScheduleArgs, ctx: ToolContext) -> ToolResult:
+        mgr = ctx.user_settings.scheduler_manager
+        if mgr is None:
+            return ToolResult(error="scheduler_not_initialized")
+        if args.description is not None:
+            if (bad := _description_has_time_word(args.description)) is not None:
+                return ToolResult(error=(
+                    f"title_contains_time_word: '{bad}' — 标题只写做什么，"
+                    "不要含时间字。时间由 trigger_spec 描述。请重写后再调用。"
+                ))
+        safe_instruction: str | None = None
+        if args.instruction is not None:
+            safe_instruction = ctx.security.credential_guard.mask(args.instruction)
+        try:
+            ok = mgr.modify(
+                args.schedule_id,
+                trigger_type=args.trigger_type,
+                trigger_spec=args.trigger_spec,
+                instruction=safe_instruction,
+                description=args.description,
+            )
+        except Exception as e:
+            return ToolResult(error=f"modify_schedule_failed: {e}")
+        if not ok:
+            return ToolResult(error=f"modify_failed: schedule {args.schedule_id} not found")
+        card = Card(
+            type="mv-schedule-created",
+            payload=json.dumps({"schedule_id": args.schedule_id, "modified": True},
+                                ensure_ascii=False),
+        )
+        return ToolResult(content=f"schedule_modified: {args.schedule_id}", cards=[card])

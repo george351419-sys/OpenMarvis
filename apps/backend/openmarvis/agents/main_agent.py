@@ -109,9 +109,11 @@ def build_main_agent(
         CancelScheduleTool,
         CreateScheduleTool,
         ListSchedulesTool,
+        ModifyScheduleTool,
     )
     schedule_tools: tuple[Tool, ...] = (
         CreateScheduleTool(), ListSchedulesTool(), CancelScheduleTool(),
+        ModifyScheduleTool(),
     )
     for t in schedule_tools:
         reg.register(t)

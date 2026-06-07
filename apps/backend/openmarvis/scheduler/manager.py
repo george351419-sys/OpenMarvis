@@ -165,6 +165,49 @@ class ScheduleManager:
         self._delete_row(sid)
         return True
 
+    def modify(self, sid: str, *,
+               trigger_type: str | None = None,
+               trigger_spec: str | None = None,
+               instruction: str | None = None,
+               description: str | None = None) -> bool:
+        """Modify an existing schedule. Returns False if not found."""
+        row = self._read_row(sid)
+        if row is None:
+            return False
+
+        new_type = trigger_type or row.trigger_type
+        new_spec = trigger_spec or row.trigger_spec
+        new_instr = instruction if instruction is not None else row.instruction
+        new_desc = description if description is not None else row.description
+
+        try:
+            if new_type == "once":
+                run_at = datetime.fromisoformat(new_spec)
+                trig = DateTrigger(run_date=run_at)
+            elif new_type == "interval":
+                secs = int(new_spec)
+                if secs < 60:
+                    raise ScheduleSpecError("interval 不得小于 60 秒")
+                trig = IntervalTrigger(seconds=secs)
+            elif new_type == "cron":
+                trig = CronTrigger.from_crontab(new_spec)
+            else:
+                raise ScheduleSpecError(f"未知触发类型: {new_type}")
+        except ScheduleSpecError:
+            raise
+        except Exception as e:
+            raise ScheduleSpecError(f"trigger_spec 解析失败: {e}") from e
+
+        try:
+            self._sched.remove_job(sid)
+        except Exception:
+            pass
+        self._sched.add_job(self._wrap_callback(sid), trigger=trig,
+                             id=sid, name=new_desc or new_type,
+                             replace_existing=True)
+        self._update_row(sid, new_type, new_spec, new_instr, new_desc)
+        return True
+
     # -- persistence ---------------------------------------------------------
 
     def _persist(self, sid: str, trigger_type: str, trigger_spec: str,
@@ -201,6 +244,22 @@ class ScheduleManager:
                                 instruction=r.instruction,
                                 description=r.description,
                                 next_run_at=None)
+
+    def _update_row(self, sid: str, trigger_type: str, trigger_spec: str,
+                    instruction: str, description: str) -> None:
+        if self.engine is None:
+            return
+        from sqlmodel import Session, select
+
+        from ..store.models import Schedule
+        with Session(self.engine) as ses:
+            r = ses.exec(select(Schedule).where(Schedule.id == sid)).first()
+            if r is not None:
+                r.trigger_type = trigger_type
+                r.trigger_spec = trigger_spec
+                r.instruction = instruction
+                r.description = description
+                ses.commit()
 
     def _delete_row(self, sid: str) -> None:
         if self.engine is None:
