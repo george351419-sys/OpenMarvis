@@ -5,7 +5,7 @@ install:
 	cd apps/backend && python3.11 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 
 dev-backend:
-	cd apps/backend && .venv/bin/uvicorn openmarvis.main:app --reload --port 8001
+	cd apps/backend && .venv/bin/uvicorn openmarvis.main:app --reload --port 8000
 
 dev-web:
 	pnpm dev:web
