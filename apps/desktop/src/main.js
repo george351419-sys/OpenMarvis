@@ -103,9 +103,11 @@ function createTray() {
 // ─── App events ───────────────────────────────────────────────────────────────
 
 app.whenReady().then(() => {
-  // macOS dock icon
+  // macOS dock icon (skip silently if icon file is missing)
   if (process.platform === "darwin") {
-    app.dock.setIcon(path.join(__dirname, "..", "build", "icon.png"));
+    try {
+      app.dock.setIcon(path.join(__dirname, "..", "build", "icon.png"));
+    } catch (_) {}
   }
 
   createWindow();
