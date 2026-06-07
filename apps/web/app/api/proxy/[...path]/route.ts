@@ -44,5 +44,8 @@ export async function PUT(req: NextRequest, ctx: { params: { path: string[] } })
 export async function DELETE(req: NextRequest, ctx: { params: { path: string[] } }) {
   return forward(req, ctx.params, "DELETE");
 }
+export async function PATCH(req: NextRequest, ctx: { params: { path: string[] } }) {
+  return forward(req, ctx.params, "PATCH");
+}
 
 export const dynamic = "force-dynamic";

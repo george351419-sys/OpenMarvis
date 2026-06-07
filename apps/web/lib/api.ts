@@ -55,6 +55,10 @@ export const api = {
   listConversations: () => fetchJson<ConversationDTO[]>("/conversations"),
   createConversation: (title: string) =>
     fetchJson<ConversationDTO>("/conversations", { method: "POST", body: JSON.stringify({ title }) }),
+  renameConversation: (id: string, title: string) =>
+    fetchJson<ConversationDTO>(`/conversations/${id}`, {
+      method: "PATCH", body: JSON.stringify({ title }),
+    }),
   deleteConversation: (id: string) =>
     fetchJson<{ ok: boolean }>(`/conversations/${id}`, { method: "DELETE" }),
   purgeConversation: (id: string) =>

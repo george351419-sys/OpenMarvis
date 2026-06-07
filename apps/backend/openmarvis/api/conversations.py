@@ -67,6 +67,23 @@ class CreateConvRequest(BaseModel):
     title: str = ""
 
 
+class PatchConvRequest(BaseModel):
+    title: str
+
+
+@router.patch("/{conv_id}")
+async def patch_conv(conv_id: str, req: PatchConvRequest, request: Request) -> dict:
+    engine = request.app.state.om.engine
+    with Session(engine) as s:
+        rec = s.get(Conversation, conv_id)
+        if rec is None:
+            raise HTTPException(404, "not found")
+        rec.title = req.title
+        rec.updated_at = int(time.time())
+        s.commit()
+    return {"id": conv_id, "title": req.title}
+
+
 @router.post("")
 async def create_conv(req: CreateConvRequest, request: Request) -> dict:
     engine = request.app.state.om.engine

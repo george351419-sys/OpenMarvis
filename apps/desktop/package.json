@@ -1,0 +1,56 @@
+{
+  "name": "openmarvis-desktop",
+  "version": "0.1.0",
+  "description": "OpenMarvis 桌面客户端",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder --mac",
+    "build:dmg": "electron-builder --mac dmg",
+    "build:all": "electron-builder --mac --win --linux"
+  },
+  "dependencies": {
+    "electron-squirrel-startup": "^1.0.0"
+  },
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.0.0"
+  },
+  "build": {
+    "appId": "com.openmarvis.desktop",
+    "productName": "OpenMarvis",
+    "copyright": "Copyright © 2025 OpenMarvis",
+    "icon": "build/icon.png",
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.icns",
+      "target": [
+        { "target": "dmg", "arch": ["arm64", "x64"] },
+        { "target": "zip", "arch": ["arm64", "x64"] }
+      ],
+      "darkModeSupport": true,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "title": "OpenMarvis",
+      "background": "build/dmg-background.png",
+      "window": { "width": 540, "height": 380 }
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "linux": {
+      "target": "AppImage"
+    },
+    "files": [
+      "src/**/*",
+      "build/icon.*"
+    ],
+    "extraMetadata": {
+      "main": "src/main.js"
+    }
+  }
+}

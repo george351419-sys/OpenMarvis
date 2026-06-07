@@ -49,7 +49,7 @@ export const useTimeline = create<TimelineState>((set, get) => ({
   rootAgentId: MAIN_ID,
   agentOrder: [],
   activeStack: [MAIN_ID],
-  open: true,
+  open: false,
   toggleOpen: () => set((s) => ({ open: !s.open })),
   setOpen: (open) => set({ open }),
   clear: () => set({
