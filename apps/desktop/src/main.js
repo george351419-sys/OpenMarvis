@@ -166,9 +166,13 @@ async function startServices() {
 // ─── Tray ─────────────────────────────────────────────────────────────────────
 
 function createTray() {
-  const iconPath = path.join(__dirname, "..", "build", "tray-icon.png");
+  // Use Template image so macOS auto-inverts for dark menu bar
+  const iconPath = path.join(__dirname, "..", "build", "tray-iconTemplate.png");
   let icon;
-  try { icon = nativeImage.createFromPath(iconPath); } catch { icon = nativeImage.createEmpty(); }
+  try {
+    icon = nativeImage.createFromPath(iconPath);
+    icon.setTemplateImage(true);
+  } catch { icon = nativeImage.createEmpty(); }
   tray = new Tray(icon);
   tray.setToolTip("OpenMarvis");
   tray.setContextMenu(Menu.buildFromTemplate([
